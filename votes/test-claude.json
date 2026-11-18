@@ -1,0 +1,84 @@
+{
+  "id": "test-claude",
+  "date": "2026-11-18T00:37:28.848Z",
+  "lists": {
+    "events": {
+      "goat": [
+        "Préranks",
+        "SKZ",
+        "Délivrance"
+      ],
+      "excellent": [
+        "Bienvenue",
+        "508",
+        "Gala de Cluny"
+      ],
+      "bien": [
+        "BCLG",
+        "Croisière",
+        "GUAI"
+      ],
+      "mid": [
+        "Sainte B",
+        "WTP",
+        "Le CE"
+      ],
+      "nul": [
+        "Sainte C",
+        "Wix promo maraine",
+        "Micro UAI"
+      ],
+      "ru": [
+        "Sainte D",
+        "Wix JP",
+        "Exances"
+      ]
+    },
+    "assos": {
+      "goat": [
+        "Pians",
+        "Estime",
+        "ERS",
+        "AE",
+        "Zi-phot's",
+        "UE"
+      ],
+      "excellent": [
+        "Comit's",
+        "UAI",
+        "DAP",
+        "CDF",
+        "Boquette studio",
+        "Zi-forum"
+      ],
+      "bien": [
+        "HH",
+        "BFS",
+        "Gadzarbre",
+        "GG",
+        "Boxon"
+      ],
+      "mid": [
+        "4H",
+        "Gazole",
+        "Grand-mère",
+        "TQ",
+        "AMJE"
+      ],
+      "nul": [
+        "Zoulou",
+        "ZC",
+        "DDC",
+        "Zizag",
+        "AMC"
+      ],
+      "ru": [
+        "FU",
+        "DDP",
+        "Zi-Atrium",
+        "Zi-spy",
+        "ELF"
+      ]
+    }
+  }
+}
