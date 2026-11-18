@@ -53,6 +53,11 @@
   .vote .body b{display:inline-block;min-width:120px}
   .vote .del{margin-top:8px;justify-self:start;font-size:12px;padding:6px 10px;color:#ff9f9f}
   .empty{color:var(--muted);padding:20px;text-align:center}
+  .pending{display:block;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:12px 14px;margin:0 0 8px;color:var(--text);text-decoration:none;font-size:14px}
+  .pending:hover{background:var(--chip)}
+  .pending b{font-family:"Archivo Black",sans-serif}
+  .vote .file{font-size:12px;color:var(--muted);margin-top:6px}
+  .vote .file a{color:var(--accent)}
   section.list{margin-top:44px;padding-top:28px;border-top:1px solid var(--line)}
   section.list h1{font-size:clamp(20px,4vw,28px);margin-bottom:14px}
   .sec-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
@@ -63,7 +68,7 @@
 
 <form class="login" id="login">
   <h1 style="font-size:24px">ADMIN</h1>
-  <input type="password" id="key" placeholder="Mot de passe admin" autocomplete="current-password" required>
+  <input type="password" id="key" placeholder="Code admin" autocomplete="current-password" required>
   <button class="primary" type="submit">Voir les résultats</button>
   <p class="err" id="err"></p>
 </form>
@@ -76,27 +81,23 @@
     </div>
     <div class="actions">
       <button id="refresh">Rafraîchir</button>
+      <button id="json">Exporter JSON</button>
       <button id="logout">Déconnexion</button>
     </div>
   </header>
+  <a class="pending" id="pending" target="_blank" rel="noopener"></a>
   <div id="sections"></div>
 </main>
 
-<script src="config.js?v=4"></script>
+<script src="config.js?v=5"></script>
 <script>
 const $ = id=>document.getElementById(id);
-let KEY_ = null;
+let RAW = null;
 
 function sget(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
 function sset(k,v){ try{ v===null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v); }catch(e){} }
 function el(tag, props={}, ...kids){ const e=document.createElement(tag); Object.assign(e,props); e.append(...kids); return e; }
-
-async function api(params){
-  const url=API_URL+"?"+new URLSearchParams({...params,key:KEY_});
-  const res=await fetch(url); const data=await res.json();
-  if(!data.ok) throw new Error(data.error||"erreur");
-  return data;
-}
+async function sha256(s){ const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
 
 /* ---- une section de résultats par tier list ---- */
 const SECTIONS = LISTS.map(L=>{
@@ -115,20 +116,39 @@ const SECTIONS = LISTS.map(L=>{
 });
 
 async function refresh(){
-  const all=await Promise.all(SECTIONS.map(S=>api({action:"results",list:S.L.id})));
-  SECTIONS.forEach((S,i)=>{ S.votes=all[i].votes; render(S); });
-  $("updated").textContent="Mis à jour à "+new Date().toLocaleTimeString("fr-FR");
+  const res=await fetch("results.json?t="+Date.now(),{cache:"no-store"});
+  RAW=res.ok?await res.json():{votes:[]};
+  // si quelqu'un a revoté, on garde seulement son dernier vote
+  const latest={};
+  for(const v of RAW.votes) if(!latest[v.id]||v.date>latest[v.id].date) latest[v.id]=v;
+  const votes=Object.values(latest).sort((a,b)=>a.date<b.date?-1:1);
+  SECTIONS.forEach(S=>{
+    S.votes=votes.filter(v=>v.lists[S.L.id]).map((v,i)=>({num:i+1,file:v.file,date:v.date,tiers:v.lists[S.L.id]}));
+    render(S);
+  });
+  $("updated").textContent=RAW.generated?"Votes mergés, mis à jour le "+new Date(RAW.generated).toLocaleString("fr-FR"):"Aucun vote mergé pour l'instant";
+  loadPending();
+}
+
+async function loadPending(){
+  const a=$("pending"); a.href=`https://github.com/${REPO}/pulls`;
+  try{
+    const r=await fetch(`https://api.github.com/repos/${REPO}/pulls?state=open&per_page=100`);
+    if(!r.ok) throw new Error();
+    const n=(await r.json()).length;
+    a.replaceChildren(el("b",{textContent:n}), " vote(s) en attente de validation : ouvre les pull requests sur GitHub et merge celles que tu acceptes.");
+  }catch(e){ a.textContent="Voir les votes en attente (pull requests) sur GitHub"; }
 }
 
 $("login").addEventListener("submit", async e=>{
   e.preventDefault(); $("err").textContent="";
-  if(!API_URL){ $("err").textContent="API_URL n'est pas encore renseignée dans config.js"; return; }
-  KEY_=$("key").value;
-  try{ await refresh(); sset("tl-admin",KEY_); $("login").hidden=true; $("app").hidden=false; }
-  catch(err){ $("err").textContent= err.message==="unauthorized"?"Mot de passe incorrect":"Impossible de charger : "+err.message; }
+  if(await sha256($("key").value.trim().toUpperCase())!==ADMIN_HASH){ $("err").textContent="Code incorrect"; return; }
+  sset("tl-admin","1"); $("login").hidden=true; $("app").hidden=false;
+  refresh().catch(err=>alert("Impossible de charger les résultats : "+err.message));
 });
 $("refresh").onclick=()=>refresh().catch(e=>alert(e.message));
 $("logout").onclick=()=>{ sset("tl-admin",null); location.reload(); };
+$("json").onclick=()=>download(new Blob([JSON.stringify(RAW,null,2)],{type:"application/json"}),"tierlist-resultats.json");
 
 function aggregate(S){
   const {L,votes,score}=S;
@@ -172,33 +192,28 @@ function render(S){
 }
 
 function renderVotes(S){
-  const list=[...S.votes].sort((a,b)=>new Date(a.date)-new Date(b.date)).map((v,i)=>({...v,num:i+1})).reverse();
-  if(!list.length){ S.votesEl.replaceChildren(el("div",{className:"empty",textContent:"Aucune tier list reçue pour l'instant"})); return; }
+  const list=[...S.votes].reverse();
+  if(!list.length){ S.votesEl.replaceChildren(el("div",{className:"empty",textContent:"Aucune tier list mergée pour l'instant"})); return; }
   S.votesEl.replaceChildren(...list.map(v=>{
     const body=el("div",{className:"body"});
     S.L.tiers.forEach(t=>{ const n=v.tiers[t.id]||[]; body.append(el("div",{},el("b",{textContent:t.name}),n.length?n.join(", "):"—")); });
-    const del=el("button",{className:"del",type:"button",textContent:"Supprimer ce vote"});
-    del.onclick=async()=>{
-      if(!confirm(`Supprimer la tier list ${S.L.tab.toLowerCase()} n°${v.num} ? C'est définitif.`)) return;
-      try{ await api({action:"delete",list:S.L.id,id:v.id}); await refresh(); }catch(e){ alert(e.message); }
-    };
-    body.append(del);
-    return el("details",{className:"vote"},el("summary",{},el("div",{textContent:"Vote n°"+v.num}),el("span",{textContent:new Date(v.date).toLocaleString("fr-FR")})),body);
+    body.append(el("div",{className:"file"},"Pour retirer ce vote, supprime le fichier ",
+      el("a",{href:`https://github.com/${REPO}/blob/main/votes/${encodeURIComponent(v.file)}`,target:"_blank",rel:"noopener",textContent:v.file})," sur GitHub."));
+    return el("details",{className:"vote"},el("summary",{},el("div",{textContent:"Vote n°"+v.num}),el("span",{textContent:v.date?new Date(v.date).toLocaleString("fr-FR"):""})),body);
   }));
 }
 
+function download(blob,name){ el("a",{href:URL.createObjectURL(blob),download:name}).click(); }
 function exportCsv(S){
   const {L}=S;
   const esc=s=>`"${String(s).replace(/"/g,'""')}"`;
   const rows=[["Date",...L.items]];
   S.votes.forEach(v=>rows.push([v.date,...L.items.map(ev=>{ const t=L.tiers.find(t=>(v.tiers[t.id]||[]).includes(ev)); return t?t.name:""; })]));
-  const blob=new Blob(["﻿"+rows.map(r=>r.map(esc).join(";")).join("\n")],{type:"text/csv"});
-  el("a",{href:URL.createObjectURL(blob),download:`tierlist-${L.id}-resultats.csv`}).click();
+  download(new Blob(["﻿"+rows.map(r=>r.map(esc).join(";")).join("\n")],{type:"text/csv"}),`tierlist-${L.id}-resultats.csv`);
 }
 
-// reconnexion auto dans l'onglet
-const saved=sget("tl-admin");
-if(saved && API_URL){ $("key").value=saved; $("login").requestSubmit(); }
+// reste connecté dans l'onglet
+if(sget("tl-admin")){ $("login").hidden=true; $("app").hidden=false; refresh().catch(()=>{}); }
 </script>
 </body>
 </html>

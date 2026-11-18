@@ -1,5 +1,5 @@
-// URL du Web App Google Apps Script (voir apps-script.gs / README.md)
-const API_URL = "";
+// Dépôt GitHub qui reçoit les votes (un fichier JSON par vote, proposé en pull request)
+const REPO = "thefrip29/tierlist-events";
 
 const TIER_COLORS = ["#ff7f7f","#ffbf7f","#ffdf7f","#bfff7f","#7fbfff","#c49bff"];
 const tiers = names => ["goat","excellent","bien","mid","nul","ru"].map((id,i)=>({id, name:names[i], color:TIER_COLORS[i]}));
@@ -24,3 +24,6 @@ const LISTS = [
       "Boxon","AMJE","AMC","ELF","UE","Zi-forum"]
   }
 ];
+
+// Code de la vue admin (empreinte SHA-256, le code lui-même n'est pas dans le dépôt)
+const ADMIN_HASH = "94df4f18b003f4634fe5338ae88889db5bbcbcd98e4f9f12be90cecccf08b0ad";

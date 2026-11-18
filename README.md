@@ -1,29 +1,36 @@
-# Tier list des events
+# Tier lists (events + assos)
 
-- `index.html` : la page publique où chacun fait et valide ses tier lists (vote anonyme)
-- `admin.html` : la page admin (mot de passe) avec la tier list moyenne, le classement et les votes
-- `apps-script.gs` : le petit backend (Google Sheets + Apps Script) qui stocke les votes
+Site : https://thefrip29.github.io/tierlist-events/ · Admin : https://thefrip29.github.io/tierlist-events/admin.html
 
-## Brancher le backend (une seule fois, ~5 min)
+## Comment ça marche
 
-1. Crée une Google Sheet vide (sheets.new), nomme-la « Tier list events ».
-2. Menu **Extensions → Apps Script**. Efface le code et colle le contenu de `apps-script.gs`.
-3. Remplace `CHANGE_MOI` par ton mot de passe admin. Enregistre (💾).
-4. **Déployer → Nouveau déploiement** → type **Application Web** :
-   - Exécuter en tant que : **Moi**
-   - Qui a accès : **Tout le monde**
-   - Déployer, autorise l'accès à ton compte, puis copie l'**URL de l'application Web** (finit par `/exec`).
-5. Colle cette URL dans `config.js` à la ligne `const API_URL = "";`, puis commit/push.
+1. Sur la page, chacun classe les events et les assos puis clique **Valider mes tier lists**.
+2. GitHub s'ouvre avec un fichier `votes/xxxx.json` déjà rempli : la personne clique **Propose changes** puis **Create pull request** (il faut un compte GitHub).
+3. Tu valides un vote en **mergeant** sa pull request (onglet *Pull requests* du dépôt). Tu refuses en la fermant.
+4. À chaque merge, l'Action GitHub *Publier le site* compile tous les fichiers `votes/*.json` dans `results.json` et republie le site (~1 min).
+5. La page admin (protégée par un code) lit `results.json` : tier list moyenne, classement, votes, export CSV / JSON, et le nombre de PR en attente.
 
-Les votes arrivent aussi en clair dans les onglets « Votes events » et « Votes assos » de la Google Sheet (créés automatiquement au premier vote).
+Si une personne revote, seul son dernier vote compte (même identifiant aléatoire dans le fichier).
+Pour retirer un vote déjà mergé : supprime son fichier dans `votes/`.
 
-## Pages
+## Fichiers
 
-- Page de vote : `index.html` (events + assos sur la même page, un seul bouton Valider)
-- Admin : `admin.html` (résultats des deux listes sur la même page)
+- `index.html` : page de vote
+- `admin.html` : résultats
+- `config.js` : listes, tiers, dépôt, empreinte du code admin
+- `votes/` : un fichier JSON par vote mergé
+- `scripts/build-results.js` + `.github/workflows/pages.yml` : compilation et publication
 
-> Si tu modifies le script plus tard : Déployer → Gérer les déploiements → ✏️ → Version : Nouvelle version (l'URL reste la même).
+## Changer le code admin
+
+`ADMIN_HASH` dans `config.js` est l'empreinte SHA-256 du code (en majuscules). Pour en générer une :
+
+```bash
+node -e "console.log(require('crypto').createHash('sha256').update('MONCODE').digest('hex'))"
+```
+
+À noter : le dépôt est public, donc les fichiers de vote sont lisibles par tout le monde sur GitHub. Le code protège seulement la page admin.
 
 ## Modifier les listes
 
-Tout est dans `config.js` (`LISTS`), chaque liste apparaît sur la page. Pour ajouter une nouvelle tier list, ajoute une entrée dans `LISTS` de `config.js` **et** dans `LISTS` de `apps-script.gs` (puis redéploie une nouvelle version du script).
+Tout est dans `LISTS` de `config.js`.
