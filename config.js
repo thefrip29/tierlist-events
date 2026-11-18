@@ -1,7 +1,7 @@
 // Supabase : Project Settings > API (URL du projet + clé publique "anon" / "publishable").
 // Cette clé est faite pour être publique : elle ne peut qu'appeler les fonctions de supabase.sql.
-const SUPABASE_URL = "";
-const SUPABASE_KEY = "";
+const SUPABASE_URL = "https://letqxatefjzdjghyimze.supabase.co";
+const SUPABASE_KEY = "sb_publishable_kNRcBbG-uvXquHzX2mYpUA_u3FJmEZS";
 
 async function rpc(fn, args){
   const headers={"Content-Type":"application/json", apikey:SUPABASE_KEY};
