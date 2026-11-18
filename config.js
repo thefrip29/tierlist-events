@@ -23,15 +23,15 @@ const LISTS = [
     poolTitle: "Events à classer",
     tiers: tiers(["GOAT","Excellent","Bien","Mid","Nul","J'préfère le RU"]),
     items: ["Préranks","Bienvenue","BCLG","Sainte B","Sainte C","Sainte D","SKZ","508","Croisière",
-      "WTP","Wix promo maraine","Wix JP","Délivrance","Gala de Cluny","GUAI","Le CE","Micro UAI","Exances"]
+      "WTP","Wix promo maraine","Wix JP","Délivrance","Gala de Cluny","GUAI","Le CE","Micro UAI","Exances","RDK"]
   },
   {
     id: "assos", tab: "Assos", title: "TIER LIST DES ASSOS",
     sub: "Glisse chaque asso dans son tier, puis valide ta tier list en bas.",
     poolTitle: "Assos à classer",
     tiers: tiers(["GOAT","Excellent","Bien","Mid","Nul","France Travail"]),
-    items: ["Pians","Comit's","HH","4H","Zoulou","FU","Estime","UAI","BFS","Gazole","ZC","DDP","ERS","DAP",
+    items: ["Pians","Comit's","HH","4H","Zoulou","FU","Estime","UAI","BFS","Gazole","DDP","ERS","DAP",
       "Gadzarbre","Grand-mère","DDC","Zi-Atrium","AE","CDF","GG","TQ","Zizag","Zi-spy","Zi-phot's","Boquette studio",
-      "Boxon","AMJE","AMC","ELF","UE","Zi-forum","Moquette","Baral","Boloss","Zident histoire"]
+      "Boxon","AMJE","AMC","ELF","UE","Zi-forum","Moquette","Baral","Boloss","Zident histoire","Zi-Amphi"]
   }
 ];
