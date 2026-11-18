@@ -50,6 +50,10 @@
   .submit button{padding:11px 18px;font-size:14px}
   .status{flex-basis:100%;font-size:13px;color:var(--muted);margin:0}
   .status.ok{color:#bfff7f}
+  .tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line)}
+  .tabs a{color:var(--muted);text-decoration:none;font-weight:700;font-size:14px;padding:10px 14px;border-bottom:3px solid transparent;margin-bottom:-1px}
+  .tabs a:hover{color:var(--text)}
+  .tabs a.on{color:var(--text);border-bottom-color:var(--accent)}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#fff;color:#111;
     padding:10px 16px;border-radius:8px;font-weight:700;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:1000}
   .toast.show{opacity:1}
@@ -57,10 +61,11 @@
 </style>
 </head>
 <body>
+<nav class="tabs" id="tabs"></nav>
 <header>
   <div>
-    <h1>TIER LIST DES EVENTS</h1>
-    <div class="sub">Glisse chaque event dans son tier, puis valide ta tier list en bas.</div>
+    <h1 id="title"></h1>
+    <div class="sub" id="sub"></div>
   </div>
   <div class="actions">
     <button id="copy">Copier en texte</button>
@@ -71,7 +76,7 @@
 <div class="board" id="board"></div>
 
 <div class="pool-wrap">
-  <p class="pool-title">Events à classer</p>
+  <p class="pool-title" id="pool-title"></p>
   <div class="zone" id="pool" data-tier="pool"></div>
 </div>
 
@@ -85,9 +90,15 @@
 
 <script src="config.js"></script>
 <script>
-const KEY = "tierlist-events-v1";
+const KEY = `tierlist-${LIST.id}-v1`;
 const ID_KEY = "tierlist-events-client-id";
-const SENT_KEY = "tierlist-events-sent";
+const SENT_KEY = `tierlist-${LIST.id}-sent`;
+
+renderTabs(document.getElementById("tabs"));
+document.title = LIST.title.charAt(0)+LIST.title.slice(1).toLowerCase();
+document.getElementById("title").textContent = LIST.title;
+document.getElementById("sub").textContent = LIST.sub;
+document.getElementById("pool-title").textContent = LIST.poolTitle;
 
 const board = document.getElementById("board");
 const pool = document.getElementById("pool");
@@ -215,11 +226,11 @@ form.addEventListener("submit", async e=>{
   const pseudo=pseudoIn.value.trim();
   if(!pseudo){ pseudoIn.focus(); return; }
   const tiers=current(); const rest=tiers.pool; delete tiers.pool;
-  if(rest.length && !confirm(`${rest.length} event(s) pas encore classé(s) (${rest.join(", ")}). Envoyer quand même ?`)) return;
+  if(rest.length && !confirm(`${rest.length} élément(s) pas encore classé(s) (${rest.join(", ")}). Envoyer quand même ?`)) return;
   if(!API_URL){ showToast("Le formulaire n'est pas encore branché"); return; }
   sendBtn.disabled=true; statusEl.className="status"; statusEl.textContent="Envoi en cours…";
   try{
-    const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({id:clientId(),pseudo,tiers})});
+    const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({list:LIST.id,id:clientId(),pseudo,tiers})});
     const data=await res.json();
     if(!data.ok) throw new Error(data.error||"erreur");
     store("tierlist-events-pseudo",pseudo); store(SENT_KEY,String(Date.now()));

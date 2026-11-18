@@ -54,6 +54,10 @@
   .vote .del{margin-top:8px;justify-self:start;font-size:12px;padding:6px 10px;color:#ff9f9f}
   .search{width:100%;font:500 14px Inter,sans-serif;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:10px}
   .empty{color:var(--muted);padding:20px;text-align:center}
+  .tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line)}
+  .tabs a{color:var(--muted);text-decoration:none;font-weight:700;font-size:14px;padding:10px 14px;border-bottom:3px solid transparent;margin-bottom:-1px}
+  .tabs a:hover{color:var(--text)}
+  .tabs a.on{color:var(--text);border-bottom-color:var(--accent)}
   @media (max-width:560px){ .label{flex-basis:84px;font-size:12px} .tr{grid-template-columns:22px 1fr 44px;} .tr .bar,.tr .n{grid-column:1/-1} .tr.head .bar-h,.tr.head .n{display:none} }
 </style>
 </head>
@@ -67,9 +71,10 @@
 </form>
 
 <main id="app" hidden>
+  <nav class="tabs" id="tabs"></nav>
   <header>
     <div>
-      <h1>RÉSULTATS</h1>
+      <h1 id="title">RÉSULTATS</h1>
       <div class="sub" id="updated"></div>
     </div>
     <div class="actions">
@@ -98,13 +103,15 @@
 const SCORE = Object.fromEntries(TIERS.map((t,i)=>[t.id, TIERS.length-1-i])); // GOAT=5 … RU=0
 const $ = id=>document.getElementById(id);
 let KEY_ = null, VOTES = [];
+renderTabs($("tabs"));
+$("title").textContent = "RÉSULTATS — "+LIST.tab.toUpperCase();
 
 function sget(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
 function sset(k,v){ try{ v===null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v); }catch(e){} }
 function el(tag, props={}, ...kids){ const e=document.createElement(tag); Object.assign(e,props); e.append(...kids); return e; }
 
 async function api(params){
-  const url=API_URL+"?"+new URLSearchParams({...params,key:KEY_});
+  const url=API_URL+"?"+new URLSearchParams({...params,list:LIST.id,key:KEY_});
   const res=await fetch(url); const data=await res.json();
   if(!data.ok) throw new Error(data.error||"erreur");
   return data;
@@ -143,8 +150,8 @@ function render(){
   const ranked=agg.filter(a=>a.n);
   $("stats").replaceChildren(
     el("div",{className:"stat"},el("b",{textContent:VOTES.length}),el("span",{textContent:"tier lists reçues"})),
-    el("div",{className:"stat"},el("b",{textContent:ranked[0]?ranked[0].ev:"—"}),el("span",{textContent:"event préféré"})),
-    el("div",{className:"stat"},el("b",{textContent:ranked.length?ranked[ranked.length-1].ev:"—"}),el("span",{textContent:"event le moins aimé"}))
+    el("div",{className:"stat"},el("b",{textContent:ranked[0]?ranked[0].ev:"—"}),el("span",{textContent:"le plus aimé"})),
+    el("div",{className:"stat"},el("b",{textContent:ranked.length?ranked[ranked.length-1].ev:"—"}),el("span",{textContent:"le moins aimé"}))
   );
 
   // tier list moyenne
@@ -156,7 +163,7 @@ function render(){
   }));
 
   // tableau
-  const head=el("div",{className:"tr head"},el("span",{textContent:"#"}),el("span",{textContent:"Event"}),el("span",{className:"num",textContent:"Moy."}),el("span",{className:"bar-h",textContent:"Répartition des votes"}),el("span",{className:"num n",textContent:"Votes"}));
+  const head=el("div",{className:"tr head"},el("span",{textContent:"#"}),el("span",{textContent:LIST.tab}),el("span",{className:"num",textContent:"Moy."}),el("span",{className:"bar-h",textContent:"Répartition des votes"}),el("span",{className:"num n",textContent:"Votes"}));
   $("table").replaceChildren(head,...agg.map((a,i)=>{
     const bar=el("div",{className:"bar"});
     TIERS.forEach(t=>{ if(a.counts[t.id]){ const s=el("i",{title:`${t.name} : ${a.counts[t.id]}`}); s.style.background=t.color; s.style.width=(a.counts[t.id]/a.n*100)+"%"; bar.append(s);} });
@@ -191,7 +198,7 @@ $("csv").onclick=()=>{
   const rows=[["Pseudo","Date",...EVENTS]];
   VOTES.forEach(v=>rows.push([v.pseudo,v.date,...EVENTS.map(ev=>{ const t=TIERS.find(t=>(v.tiers[t.id]||[]).includes(ev)); return t?t.name:""; })]));
   const blob=new Blob(["﻿"+rows.map(r=>r.map(esc).join(";")).join("\n")],{type:"text/csv"});
-  const a=el("a",{href:URL.createObjectURL(blob),download:"tierlist-resultats.csv"}); a.click();
+  const a=el("a",{href:URL.createObjectURL(blob),download:`tierlist-${LIST.id}-resultats.csv`}); a.click();
 };
 
 // reconnexion auto dans l'onglet

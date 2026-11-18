@@ -6,16 +6,22 @@
 // ⚠️ Change ce mot de passe : c'est celui de la page admin.html
 const ADMIN_KEY = "CHANGE_MOI";
 
-const SHEET_NAME = "Votes";
 const TIER_COLS = ["goat", "excellent", "bien", "mid", "nul", "ru"];
-const HEADERS = ["id", "pseudo", "date", "GOAT", "Excellent", "Bien", "Mid", "Nul", "J'préfère le RU", "json"];
+// Une feuille par tier list (doit correspondre aux "id" de LISTS dans config.js)
+const LISTS = {
+  events: { sheet: "Votes events", lastTier: "J'préfère le RU" },
+  assos:  { sheet: "Votes assos",  lastTier: "France Travail" }
+};
+const JSON_COL = 10; // colonne J
 
-function sheet_() {
+function sheet_(list) {
+  const conf = LISTS[list];
+  if (!conf) throw new Error("liste inconnue");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName(SHEET_NAME);
+  let sh = ss.getSheetByName(conf.sheet);
   if (!sh) {
-    sh = ss.insertSheet(SHEET_NAME);
-    sh.appendRow(HEADERS);
+    sh = ss.insertSheet(conf.sheet);
+    sh.appendRow(["id", "pseudo", "date", "GOAT", "Excellent", "Bien", "Mid", "Nul", conf.lastTier, "json"]);
     sh.setFrozenRows(1);
   }
   return sh;
@@ -29,6 +35,8 @@ function json_(obj) {
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
+    const list = String(body.list || "events");
+    if (!LISTS[list]) return json_({ ok: false, error: "liste inconnue" });
     const id = String(body.id || "").slice(0, 64);
     const pseudo = String(body.pseudo || "").trim().slice(0, 40);
     if (!id || !pseudo) return json_({ ok: false, error: "pseudo manquant" });
@@ -44,7 +52,7 @@ function doPost(e) {
     const lock = LockService.getScriptLock();
     lock.waitLock(10000);
     try {
-      const sh = sheet_();
+      const sh = sheet_(list);
       const ids = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().flat() : [];
       const idx = ids.indexOf(id);
       if (idx >= 0) sh.getRange(idx + 2, 1, 1, row.length).setValues([row]); // la personne renvoie : on remplace
@@ -62,7 +70,9 @@ function doPost(e) {
 function doGet(e) {
   const p = e.parameter || {};
   if (p.key !== ADMIN_KEY) return json_({ ok: false, error: "unauthorized" });
-  const sh = sheet_();
+  const list = p.list || "events";
+  if (!LISTS[list]) return json_({ ok: false, error: "liste inconnue" });
+  const sh = sheet_(list);
 
   if (p.action === "delete") {
     const ids = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().flat() : [];
@@ -76,7 +86,7 @@ function doGet(e) {
     id: r[0],
     pseudo: r[1],
     date: r[2] instanceof Date ? r[2].toISOString() : r[2],
-    tiers: JSON.parse(r[HEADERS.length - 1] || "{}")
+    tiers: JSON.parse(r[JSON_COL - 1] || "{}")
   }));
   return json_({ ok: true, votes });
 }

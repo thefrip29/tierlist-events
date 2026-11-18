@@ -15,10 +15,15 @@
    - Déployer, autorise l'accès à ton compte, puis copie l'**URL de l'application Web** (finit par `/exec`).
 5. Colle cette URL dans `config.js` à la ligne `const API_URL = "";`, puis commit/push.
 
-Les votes arrivent aussi en clair dans l'onglet « Votes » de la Google Sheet.
+Les votes arrivent aussi en clair dans les onglets « Votes events » et « Votes assos » de la Google Sheet (créés automatiquement au premier vote).
+
+## Pages
+
+- Events : `index.html` (ou `?l=events`), Assos : `index.html?l=assos`
+- Admin : `admin.html`, avec un onglet par liste
 
 > Si tu modifies le script plus tard : Déployer → Gérer les déploiements → ✏️ → Version : Nouvelle version (l'URL reste la même).
 
-## Modifier les events ou les tiers
+## Modifier les listes
 
-Tout est dans `config.js` (`EVENTS` et `TIERS`).
+Tout est dans `config.js` (`LISTS`). Pour ajouter une nouvelle tier list, ajoute une entrée dans `LISTS` de `config.js` **et** dans `LISTS` de `apps-script.gs` (puis redéploie une nouvelle version du script).
