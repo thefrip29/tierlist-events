@@ -52,7 +52,6 @@
   .vote .body{padding:0 14px 14px;font-size:14px;display:grid;gap:4px}
   .vote .body b{display:inline-block;min-width:120px}
   .vote .del{margin-top:8px;justify-self:start;font-size:12px;padding:6px 10px;color:#ff9f9f}
-  .search{width:100%;font:500 14px Inter,sans-serif;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:10px}
   .empty{color:var(--muted);padding:20px;text-align:center}
   section.list{margin-top:44px;padding-top:28px;border-top:1px solid var(--line)}
   section.list h1{font-size:clamp(20px,4vw,28px);margin-bottom:14px}
@@ -80,11 +79,10 @@
       <button id="logout">Déconnexion</button>
     </div>
   </header>
-  <input class="search" id="search" placeholder="Chercher un pseudo dans les votes…">
   <div id="sections"></div>
 </main>
 
-<script src="config.js?v=3"></script>
+<script src="config.js?v=4"></script>
 <script>
 const $ = id=>document.getElementById(id);
 let KEY_ = null;
@@ -131,7 +129,6 @@ $("login").addEventListener("submit", async e=>{
 });
 $("refresh").onclick=()=>refresh().catch(e=>alert(e.message));
 $("logout").onclick=()=>{ sset("tl-admin",null); location.reload(); };
-$("search").oninput=()=>SECTIONS.forEach(renderVotes);
 
 function aggregate(S){
   const {L,votes,score}=S;
@@ -175,27 +172,26 @@ function render(S){
 }
 
 function renderVotes(S){
-  const q=$("search").value.trim().toLowerCase();
-  const list=S.votes.filter(v=>!q||String(v.pseudo).toLowerCase().includes(q)).sort((a,b)=>new Date(b.date)-new Date(a.date));
-  if(!list.length){ S.votesEl.replaceChildren(el("div",{className:"empty",textContent:S.votes.length?"Aucun pseudo ne correspond":"Aucune tier list reçue pour l'instant"})); return; }
+  const list=[...S.votes].sort((a,b)=>new Date(a.date)-new Date(b.date)).map((v,i)=>({...v,num:i+1})).reverse();
+  if(!list.length){ S.votesEl.replaceChildren(el("div",{className:"empty",textContent:"Aucune tier list reçue pour l'instant"})); return; }
   S.votesEl.replaceChildren(...list.map(v=>{
     const body=el("div",{className:"body"});
     S.L.tiers.forEach(t=>{ const n=v.tiers[t.id]||[]; body.append(el("div",{},el("b",{textContent:t.name}),n.length?n.join(", "):"—")); });
     const del=el("button",{className:"del",type:"button",textContent:"Supprimer ce vote"});
     del.onclick=async()=>{
-      if(!confirm(`Supprimer la tier list ${S.L.tab.toLowerCase()} de « ${v.pseudo} » ? C'est définitif.`)) return;
+      if(!confirm(`Supprimer la tier list ${S.L.tab.toLowerCase()} n°${v.num} ? C'est définitif.`)) return;
       try{ await api({action:"delete",list:S.L.id,id:v.id}); await refresh(); }catch(e){ alert(e.message); }
     };
     body.append(del);
-    return el("details",{className:"vote"},el("summary",{},el("div",{textContent:v.pseudo}),el("span",{textContent:new Date(v.date).toLocaleString("fr-FR")})),body);
+    return el("details",{className:"vote"},el("summary",{},el("div",{textContent:"Vote n°"+v.num}),el("span",{textContent:new Date(v.date).toLocaleString("fr-FR")})),body);
   }));
 }
 
 function exportCsv(S){
   const {L}=S;
   const esc=s=>`"${String(s).replace(/"/g,'""')}"`;
-  const rows=[["Pseudo","Date",...L.items]];
-  S.votes.forEach(v=>rows.push([v.pseudo,v.date,...L.items.map(ev=>{ const t=L.tiers.find(t=>(v.tiers[t.id]||[]).includes(ev)); return t?t.name:""; })]));
+  const rows=[["Date",...L.items]];
+  S.votes.forEach(v=>rows.push([v.date,...L.items.map(ev=>{ const t=L.tiers.find(t=>(v.tiers[t.id]||[]).includes(ev)); return t?t.name:""; })]));
   const blob=new Blob(["﻿"+rows.map(r=>r.map(esc).join(";")).join("\n")],{type:"text/csv"});
   el("a",{href:URL.createObjectURL(blob),download:`tierlist-${L.id}-resultats.csv`}).click();
 }

@@ -1,6 +1,6 @@
 # Tier list des events
 
-- `index.html` : la page publique où chacun fait et valide sa tier list
+- `index.html` : la page publique où chacun fait et valide ses tier lists (vote anonyme)
 - `admin.html` : la page admin (mot de passe) avec la tier list moyenne, le classement et les votes
 - `apps-script.gs` : le petit backend (Google Sheets + Apps Script) qui stocke les votes
 

@@ -12,7 +12,7 @@ const LISTS = {
   events: { sheet: "Votes events", lastTier: "J'préfère le RU" },
   assos:  { sheet: "Votes assos",  lastTier: "France Travail" }
 };
-const JSON_COL = 10; // colonne J
+const JSON_COL = 9; // colonne I (aucun nom n'est stocké)
 
 function sheet_(list) {
   const conf = LISTS[list];
@@ -21,7 +21,7 @@ function sheet_(list) {
   let sh = ss.getSheetByName(conf.sheet);
   if (!sh) {
     sh = ss.insertSheet(conf.sheet);
-    sh.appendRow(["id", "pseudo", "date", "GOAT", "Excellent", "Bien", "Mid", "Nul", conf.lastTier, "json"]);
+    sh.appendRow(["id", "date", "GOAT", "Excellent", "Bien", "Mid", "Nul", conf.lastTier, "json"]);
     sh.setFrozenRows(1);
   }
   return sh;
@@ -38,8 +38,7 @@ function doPost(e) {
     const list = String(body.list || "events");
     if (!LISTS[list]) return json_({ ok: false, error: "liste inconnue" });
     const id = String(body.id || "").slice(0, 64);
-    const pseudo = String(body.pseudo || "").trim().slice(0, 40);
-    if (!id || !pseudo) return json_({ ok: false, error: "pseudo manquant" });
+    if (!id) return json_({ ok: false, error: "id manquant" });
 
     const tiers = {};
     TIER_COLS.forEach(t => {
@@ -47,7 +46,7 @@ function doPost(e) {
       tiers[t] = list.slice(0, 50).map(x => String(x).slice(0, 60));
     });
 
-    const row = [id, pseudo, new Date().toISOString(), ...TIER_COLS.map(t => tiers[t].join(", ")), JSON.stringify(tiers)];
+    const row = [id, new Date().toISOString(), ...TIER_COLS.map(t => tiers[t].join(", ")), JSON.stringify(tiers)];
 
     const lock = LockService.getScriptLock();
     lock.waitLock(10000);
@@ -84,8 +83,7 @@ function doGet(e) {
   const values = sh.getDataRange().getValues().slice(1);
   const votes = values.filter(r => r[0]).map(r => ({
     id: r[0],
-    pseudo: r[1],
-    date: r[2] instanceof Date ? r[2].toISOString() : r[2],
+    date: r[1] instanceof Date ? r[1].toISOString() : r[1],
     tiers: JSON.parse(r[JSON_COL - 1] || "{}")
   }));
   return json_({ ok: true, votes });

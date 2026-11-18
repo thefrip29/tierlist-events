@@ -47,9 +47,7 @@
   .marker{width:4px;align-self:stretch;min-height:38px;background:#fff;border-radius:2px}
   .submit{margin-top:40px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;
     display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .submit input{flex:1 1 200px;font:500 15px Inter,sans-serif;background:var(--bg);color:var(--text);
-    border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
-  .submit input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .anon{flex:1 1 220px;margin:0;font-size:14px;color:var(--muted)}
   .submit button{padding:11px 18px;font-size:14px}
   .status{flex-basis:100%;font-size:13px;color:var(--muted);margin:0}
   .status.ok{color:#bfff7f}
@@ -66,14 +64,14 @@
 <div id="lists"></div>
 
 <form class="submit" id="form">
-  <input id="pseudo" maxlength="40" placeholder="Ton pseudo / bucque" autocomplete="nickname" required>
+  <p class="anon">Vote 100 % anonyme : aucun nom n'est demandé ni enregistré.</p>
   <button type="submit" class="primary" id="send">Valider mes tier lists</button>
   <p class="status" id="status"></p>
 </form>
 
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=3"></script>
+<script src="config.js?v=4"></script>
 <script>
 const ID_KEY = "tierlist-events-client-id";
 const SENT_KEY = "tierlist-sent";
@@ -187,7 +185,7 @@ function endDrag(){
 }
 
 /* ---- validation (envoie les deux tier lists) ---- */
-const form=document.getElementById("form"), pseudoIn=document.getElementById("pseudo"),
+const form=document.getElementById("form"),
       sendBtn=document.getElementById("send"), statusEl=document.getElementById("status");
 
 function clientId(){
@@ -199,13 +197,11 @@ function showSent(){
   const sent=read(SENT_KEY);
   if(sent){ statusEl.textContent=`Tier lists envoyées le ${new Date(+sent).toLocaleString("fr-FR")}. Tu peux les modifier et les renvoyer, ça remplacera les anciennes.`; statusEl.className="status ok"; sendBtn.textContent="Renvoyer mes tier lists"; }
 }
-pseudoIn.value=read("tierlist-events-pseudo")||"";
+store("tierlist-events-pseudo",null); // nettoyage de l'ancienne version
 showSent();
 
 form.addEventListener("submit", async e=>{
   e.preventDefault();
-  const pseudo=pseudoIn.value.trim();
-  if(!pseudo){ pseudoIn.focus(); return; }
   const payloads=SECTIONS.map(S=>{ const tiers=S.current(); const rest=tiers.pool; delete tiers.pool; return {S,tiers,rest}; });
   const missing=payloads.filter(p=>p.rest.length).map(p=>`${p.S.L.tab} : ${p.rest.length} pas classé(s)`);
   if(missing.length && !confirm(`Il reste des éléments à classer :\n${missing.join("\n")}\n\nEnvoyer quand même ?`)) return;
@@ -214,9 +210,9 @@ form.addEventListener("submit", async e=>{
   try{
     const id=clientId();
     const results=await Promise.all(payloads.map(p=>
-      fetch(API_URL,{method:"POST",body:JSON.stringify({list:p.S.L.id,id,pseudo,tiers:p.tiers})}).then(r=>r.json())));
+      fetch(API_URL,{method:"POST",body:JSON.stringify({list:p.S.L.id,id,tiers:p.tiers})}).then(r=>r.json())));
     const bad=results.find(d=>!d.ok); if(bad) throw new Error(bad.error||"erreur");
-    store("tierlist-events-pseudo",pseudo); store(SENT_KEY,String(Date.now()));
+    store(SENT_KEY,String(Date.now()));
     showSent(); showToast("Tier lists validées !");
   }catch(err){
     statusEl.className="status"; statusEl.textContent="L'envoi a échoué, réessaie dans un instant.";
