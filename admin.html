@@ -56,6 +56,19 @@
   section.list{margin-top:44px;padding-top:28px;border-top:1px solid var(--line)}
   section.list h1{font-size:clamp(20px,4vw,28px);margin-bottom:14px}
   .sec-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .manage{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
+  .manage summary{cursor:pointer;padding:12px 14px;font-weight:700;list-style:none}
+  .manage summary::-webkit-details-marker{display:none}
+  .manage summary::before{content:"▸ ";color:var(--muted)}
+  .manage[open] summary::before{content:"▾ "}
+  .manage .inner{padding:0 14px 14px;display:grid;gap:12px}
+  .add{display:flex;gap:8px;flex-wrap:wrap}
+  .add input{flex:1 1 200px;min-width:0;font:500 14px Inter,sans-serif;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+  .items{display:flex;flex-wrap:wrap;gap:6px}
+  .item{display:inline-flex;align-items:center;gap:4px;background:var(--chip);border:1px solid #3a3a48;border-radius:8px;padding:4px 4px 4px 10px;font-weight:700;font-size:13px}
+  .item button{padding:2px 7px;font-size:13px;line-height:1.2;color:#ff9f9f;background:transparent;border:none}
+  .item button:hover{background:#3a2a30}
+  .manage .msg{font-size:13px;color:var(--muted);margin:0}
   @media (max-width:560px){ .label{flex-basis:84px;font-size:12px} .tr{grid-template-columns:22px 1fr 44px;} .tr .bar,.tr .n{grid-column:1/-1} .tr.head .bar-h,.tr.head .n{display:none} }
 </style>
 </head>
@@ -83,7 +96,7 @@
   <div id="sections"></div>
 </main>
 
-<script src="config.js?v=12"></script>
+<script src="config.js?v=13"></script>
 <script>
 const $ = id=>document.getElementById(id);
 let RAW = [], CODE = null;
@@ -98,8 +111,27 @@ const SECTIONS = LISTS.map(L=>{
   const csv=el("button",{type:"button",textContent:"Exporter CSV"});
   S.stats=el("div",{className:"stats"}); S.board=el("div",{className:"board"});
   S.table=el("div",{className:"table"}); S.legend=el("div",{className:"legend"}); S.votesEl=el("div");
+
+  // Gestion des éléments de la liste (ajout / retrait)
+  const noun=L.id==="assos"?"asso":"event";
+  const input=el("input",{placeholder:`Nom de l'${noun} à ajouter`,maxLength:40});
+  const addBtn=el("button",{type:"submit",className:"primary",textContent:"Ajouter"});
+  const addForm=el("form",{className:"add"},input,addBtn);
+  S.itemsEl=el("div",{className:"items"}); S.msg=el("p",{className:"msg"});
+  S.manageSummary=el("summary");
+  addForm.onsubmit=async e=>{
+    e.preventDefault(); const name=input.value.trim(); if(!name) return;
+    if(L.items.some(n=>n.toLowerCase()===name.toLowerCase())){ S.msg.textContent=`« ${name} » est déjà dans la liste.`; return; }
+    addBtn.disabled=true;
+    try{ await rpc("admin_add_item",{p_code:CODE,p_list:L.id,p_name:name}); input.value=""; S.msg.textContent=`« ${name} » ajouté. Il apparaît tout de suite sur la page de vote.`; await refresh(); }
+    catch(err){ S.msg.textContent="Impossible d'ajouter : "+err.message; }
+    finally{ addBtn.disabled=false; input.focus(); }
+  };
+  const manage=el("details",{className:"manage"},S.manageSummary,el("div",{className:"inner"},addForm,S.msg,S.itemsEl));
+
   $("sections").append(el("section",{className:"list"},
     el("div",{className:"sec-head"},el("h1",{textContent:L.title}),csv),
+    manage,
     S.stats,
     el("h2",{textContent:"Tier list moyenne"}), S.board,
     el("h2",{textContent:"Classement détaillé"}), S.table, S.legend,
@@ -109,9 +141,25 @@ const SECTIONS = LISTS.map(L=>{
 });
 
 // Le code est vérifié par Supabase : sans le bon code, aucune donnée n'est renvoyée.
+function renderItems(S){
+  const {L}=S;
+  S.manageSummary.textContent=`Gérer la liste (${L.items.length} ${L.id==="assos"?"assos":"events"})`;
+  S.itemsEl.replaceChildren(...L.items.map(name=>{
+    const x=el("button",{type:"button",title:"Retirer",textContent:"✕"});
+    x.onclick=async()=>{
+      if(!confirm(`Retirer « ${name} » de la liste ? Il disparaîtra de la page de vote et des résultats.`)) return;
+      try{ await rpc("admin_remove_item",{p_code:CODE,p_list:L.id,p_name:name}); S.msg.textContent=`« ${name} » retiré.`; await refresh(); }
+      catch(err){ S.msg.textContent="Impossible de retirer : "+err.message; }
+    };
+    return el("span",{className:"item"},name,x);
+  }));
+}
+
 async function refresh(){
-  RAW=await rpc("admin_results",{p_code:CODE})||[];
+  const [votes]=await Promise.all([rpc("admin_results",{p_code:CODE}), loadItems()]);
+  RAW=votes||[];
   SECTIONS.forEach(S=>{
+    renderItems(S);
     S.votes=RAW.filter(v=>v.lists&&v.lists[S.L.id]).map((v,i)=>({num:i+1,id:v.id,date:v.date,tiers:v.lists[S.L.id]}));
     render(S);
   });

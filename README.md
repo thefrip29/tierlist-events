@@ -6,6 +6,7 @@ Site : https://thefrip29.github.io/tierlist-events/ · Admin : https://thefrip29
 
 - Sur la page, chacun classe les events et les assos puis clique **Valider mes tier lists** : le vote part directement dans Supabase. C'est anonyme (aucun nom), et si la personne revote, ça remplace son ancien vote.
 - La page admin demande le code admin, vérifié par Supabase : tier list moyenne, classement, votes individuels (suppression possible), export CSV / JSON.
+- Dans l'admin, « Gérer la liste » permet d'ajouter ou retirer des events / assos (stockés dans la table `items` de Supabase, voir `supabase-items.sql`).
 
 ## Mise en place Supabase (une seule fois)
 
@@ -27,4 +28,4 @@ Changer le code admin : relance seulement la dernière requête de `supabase.sql
 
 ## Modifier les listes
 
-Tout est dans `LISTS` de `config.js`.
+Depuis la page admin, bloc « Gérer la liste ». Les titres et les tiers restent dans `LISTS` de `config.js`.

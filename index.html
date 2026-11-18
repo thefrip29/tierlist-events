@@ -71,8 +71,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=12"></script>
-<script>
+<script src="config.js?v=13"></script>
+<script type="module">
+await loadItems(); // listes à jour depuis Supabase (sinon celles de config.js)
 const ID_KEY = "tierlist-events-client-id";
 const SENT_KEY = "tierlist-sent";
 

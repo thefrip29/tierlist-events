@@ -35,3 +35,13 @@ const LISTS = [
       "Boxon","AMJE","AMC","ELF","UE","Zi-forum","Moquette","Baral","Boloss","Zident histoire","Zi-Amphi","Bokal"]
   }
 ];
+
+// Les éléments de chaque liste sont gérés depuis la page admin (table "items" dans Supabase).
+// Les listes "items" ci-dessus servent seulement de secours si Supabase ne répond pas.
+async function loadItems(){
+  try{
+    const data=await rpc("get_items",{});
+    LISTS.forEach(L=>{ if(data && Array.isArray(data[L.id]) && data[L.id].length) L.items=data[L.id]; });
+    return true;
+  }catch(e){ return false; }
+}
