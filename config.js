@@ -32,6 +32,6 @@ const LISTS = [
     tiers: tiers(["GOAT","Excellent","Bien","Mid","Nul","France Travail"]),
     items: ["Pians","Comit's","HH","4H","Zoulou","FU","Estime","UAI","BFS","Gazole","ZC","DDP","ERS","DAP",
       "Gadzarbre","Grand-mère","DDC","Zi-Atrium","AE","CDF","GG","TQ","Zizag","Zi-spy","Zi-phot's","Boquette studio",
-      "Boxon","AMJE","AMC","ELF","UE","Zi-forum"]
+      "Boxon","AMJE","AMC","ELF","UE","Zi-forum","Moquette","Baral"]
   }
 ];
