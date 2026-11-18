@@ -53,11 +53,6 @@
   .vote .body b{display:inline-block;min-width:120px}
   .vote .del{margin-top:8px;justify-self:start;font-size:12px;padding:6px 10px;color:#ff9f9f}
   .empty{color:var(--muted);padding:20px;text-align:center}
-  .pending{display:block;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:12px 14px;margin:0 0 8px;color:var(--text);text-decoration:none;font-size:14px}
-  .pending:hover{background:var(--chip)}
-  .pending b{font-family:"Archivo Black",sans-serif}
-  .vote .file{font-size:12px;color:var(--muted);margin-top:6px}
-  .vote .file a{color:var(--accent)}
   section.list{margin-top:44px;padding-top:28px;border-top:1px solid var(--line)}
   section.list h1{font-size:clamp(20px,4vw,28px);margin-bottom:14px}
   .sec-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
@@ -85,19 +80,17 @@
       <button id="logout">Déconnexion</button>
     </div>
   </header>
-  <a class="pending" id="pending" target="_blank" rel="noopener"></a>
   <div id="sections"></div>
 </main>
 
-<script src="config.js?v=5"></script>
+<script src="config.js?v=6"></script>
 <script>
 const $ = id=>document.getElementById(id);
-let RAW = null;
+let RAW = [], CODE = null;
 
 function sget(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
 function sset(k,v){ try{ v===null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v); }catch(e){} }
 function el(tag, props={}, ...kids){ const e=document.createElement(tag); Object.assign(e,props); e.append(...kids); return e; }
-async function sha256(s){ const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
 
 /* ---- une section de résultats par tier list ---- */
 const SECTIONS = LISTS.map(L=>{
@@ -115,36 +108,25 @@ const SECTIONS = LISTS.map(L=>{
   return S;
 });
 
+// Le code est vérifié par Supabase : sans le bon code, aucune donnée n'est renvoyée.
 async function refresh(){
-  const res=await fetch("results.json?t="+Date.now(),{cache:"no-store"});
-  RAW=res.ok?await res.json():{votes:[]};
-  // si quelqu'un a revoté, on garde seulement son dernier vote
-  const latest={};
-  for(const v of RAW.votes) if(!latest[v.id]||v.date>latest[v.id].date) latest[v.id]=v;
-  const votes=Object.values(latest).sort((a,b)=>a.date<b.date?-1:1);
+  RAW=await rpc("admin_results",{p_code:CODE})||[];
   SECTIONS.forEach(S=>{
-    S.votes=votes.filter(v=>v.lists[S.L.id]).map((v,i)=>({num:i+1,file:v.file,date:v.date,tiers:v.lists[S.L.id]}));
+    S.votes=RAW.filter(v=>v.lists&&v.lists[S.L.id]).map((v,i)=>({num:i+1,id:v.id,date:v.date,tiers:v.lists[S.L.id]}));
     render(S);
   });
-  $("updated").textContent=RAW.generated?"Votes mergés, mis à jour le "+new Date(RAW.generated).toLocaleString("fr-FR"):"Aucun vote mergé pour l'instant";
-  loadPending();
+  $("updated").textContent="Mis à jour à "+new Date().toLocaleTimeString("fr-FR");
 }
 
-async function loadPending(){
-  const a=$("pending"); a.href=`https://github.com/${REPO}/pulls`;
-  try{
-    const r=await fetch(`https://api.github.com/repos/${REPO}/pulls?state=open&per_page=100`);
-    if(!r.ok) throw new Error();
-    const n=(await r.json()).length;
-    a.replaceChildren(el("b",{textContent:n}), " vote(s) en attente de validation : ouvre les pull requests sur GitHub et merge celles que tu acceptes.");
-  }catch(e){ a.textContent="Voir les votes en attente (pull requests) sur GitHub"; }
+async function login(code){
+  if(!SUPABASE_URL) throw new Error("Supabase n'est pas encore branché (config.js)");
+  CODE=code; await refresh();
+  sset("tl-admin",code); $("login").hidden=true; $("app").hidden=false;
 }
-
 $("login").addEventListener("submit", async e=>{
   e.preventDefault(); $("err").textContent="";
-  if(await sha256($("key").value.trim().toUpperCase())!==ADMIN_HASH){ $("err").textContent="Code incorrect"; return; }
-  sset("tl-admin","1"); $("login").hidden=true; $("app").hidden=false;
-  refresh().catch(err=>alert("Impossible de charger les résultats : "+err.message));
+  try{ await login($("key").value); }
+  catch(err){ $("err").textContent= /unauthorized/.test(err.message)?"Code incorrect":"Impossible de charger : "+err.message; }
 });
 $("refresh").onclick=()=>refresh().catch(e=>alert(e.message));
 $("logout").onclick=()=>{ sset("tl-admin",null); location.reload(); };
@@ -193,12 +175,16 @@ function render(S){
 
 function renderVotes(S){
   const list=[...S.votes].reverse();
-  if(!list.length){ S.votesEl.replaceChildren(el("div",{className:"empty",textContent:"Aucune tier list mergée pour l'instant"})); return; }
+  if(!list.length){ S.votesEl.replaceChildren(el("div",{className:"empty",textContent:"Aucune tier list reçue pour l'instant"})); return; }
   S.votesEl.replaceChildren(...list.map(v=>{
     const body=el("div",{className:"body"});
     S.L.tiers.forEach(t=>{ const n=v.tiers[t.id]||[]; body.append(el("div",{},el("b",{textContent:t.name}),n.length?n.join(", "):"—")); });
-    body.append(el("div",{className:"file"},"Pour retirer ce vote, supprime le fichier ",
-      el("a",{href:`https://github.com/${REPO}/blob/main/votes/${encodeURIComponent(v.file)}`,target:"_blank",rel:"noopener",textContent:v.file})," sur GitHub."));
+    const del=el("button",{className:"del",type:"button",textContent:"Supprimer ce vote"});
+    del.onclick=async()=>{
+      if(!confirm(`Supprimer le vote n°${v.num} ? Ça retire ses tier lists events ET assos, c'est définitif.`)) return;
+      try{ await rpc("admin_delete",{p_code:CODE,p_voter:v.id}); await refresh(); }catch(e){ alert(e.message); }
+    };
+    body.append(del);
     return el("details",{className:"vote"},el("summary",{},el("div",{textContent:"Vote n°"+v.num}),el("span",{textContent:v.date?new Date(v.date).toLocaleString("fr-FR"):""})),body);
   }));
 }
@@ -213,7 +199,7 @@ function exportCsv(S){
 }
 
 // reste connecté dans l'onglet
-if(sget("tl-admin")){ $("login").hidden=true; $("app").hidden=false; refresh().catch(()=>{}); }
+if(sget("tl-admin")) login(sget("tl-admin")).catch(()=>sset("tl-admin",null));
 </script>
 </body>
 </html>

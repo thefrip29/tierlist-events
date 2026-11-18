@@ -25,11 +25,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Préparer le site et compiler les votes
+      - name: Préparer le site
         run: |
           mkdir -p _site
           cp *.html *.js _site/
-          node scripts/build-results.js _site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

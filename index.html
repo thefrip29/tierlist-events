@@ -64,14 +64,14 @@
 <div id="lists"></div>
 
 <form class="submit" id="form">
-  <p class="anon">« Valider » ouvre GitHub avec ton vote déjà rempli (fichier JSON) : clique sur <b>Propose changes</b> puis <b>Create pull request</b>. Il faut un compte GitHub.</p>
+  <p class="anon">Vote anonyme : aucun nom n'est demandé ni enregistré.</p>
   <button type="submit" class="primary" id="send">Valider mes tier lists</button>
   <p class="status" id="status"></p>
 </form>
 
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=5"></script>
+<script src="config.js?v=6"></script>
 <script>
 const ID_KEY = "tierlist-events-client-id";
 const SENT_KEY = "tierlist-sent";
@@ -195,23 +195,25 @@ function clientId(){
 }
 function showSent(){
   const sent=read(SENT_KEY);
-  if(sent){ statusEl.textContent=`Vote préparé le ${new Date(+sent).toLocaleString("fr-FR")}. Pense à créer la pull request sur GitHub. Si tu revotes, seul ton dernier vote compte.`; statusEl.className="status ok"; sendBtn.textContent="Revoter"; }
+  if(sent){ statusEl.textContent=`Tier lists envoyées le ${new Date(+sent).toLocaleString("fr-FR")}. Tu peux les modifier et revoter, ça remplacera ton ancien vote.`; statusEl.className="status ok"; sendBtn.textContent="Revoter"; }
 }
 store("tierlist-events-pseudo",null); // nettoyage des anciennes versions
 showSent();
 
-// Chaque vote = un fichier votes/<id>-<horodatage>.json proposé en pull request
-form.addEventListener("submit", e=>{
+// Un clic : le vote part directement dans Supabase
+form.addEventListener("submit", async e=>{
   e.preventDefault();
   const lists={}, missing=[];
   SECTIONS.forEach(S=>{ const t=S.current(); if(t.pool.length) missing.push(`${S.L.tab} : ${t.pool.length} pas classé(s)`); delete t.pool; lists[S.L.id]=t; });
   if(missing.length && !confirm(`Il reste des éléments à classer :\n${missing.join("\n")}\n\nEnvoyer quand même ?`)) return;
-  const id=clientId(), now=new Date();
-  const vote={id, date:now.toISOString(), lists};
-  const path=`votes/${id.slice(0,8)}-${now.getTime()}.json`;
-  const url=`https://github.com/${REPO}/new/main?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(JSON.stringify(vote,null,2)+"\n")}`;
-  if(!window.open(url,"_blank")) location.href=url;
-  store(SENT_KEY,String(now.getTime())); showSent();
+  if(!SUPABASE_URL){ showToast("Le vote n'est pas encore branché"); return; }
+  sendBtn.disabled=true; statusEl.className="status"; statusEl.textContent="Envoi en cours…";
+  try{
+    await rpc("submit_vote",{p_voter:clientId(), p_lists:lists});
+    store(SENT_KEY,String(Date.now())); showSent(); showToast("Vote enregistré, merci !");
+  }catch(err){
+    statusEl.className="status"; statusEl.textContent="L'envoi a échoué, réessaie dans un instant.";
+  }finally{ sendBtn.disabled=false; }
 });
 
 SECTIONS.forEach(S=>S.load());

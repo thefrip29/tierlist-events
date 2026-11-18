@@ -1,10 +1,21 @@
-// Dépôt GitHub qui reçoit les votes (un fichier JSON par vote, proposé en pull request)
-const REPO = "thefrip29/tierlist-events";
+// Supabase : Project Settings > API (URL du projet + clé publique "anon" / "publishable").
+// Cette clé est faite pour être publique : elle ne peut qu'appeler les fonctions de supabase.sql.
+const SUPABASE_URL = "";
+const SUPABASE_KEY = "";
+
+async function rpc(fn, args){
+  const headers={"Content-Type":"application/json", apikey:SUPABASE_KEY};
+  if(SUPABASE_KEY.startsWith("eyJ")) headers.Authorization="Bearer "+SUPABASE_KEY; // ancienne clé "anon"
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers,body:JSON.stringify(args)});
+  const text=await res.text(); const data=text?JSON.parse(text):null;
+  if(!res.ok) throw new Error((data&&data.message)||("erreur "+res.status));
+  return data;
+}
 
 const TIER_COLORS = ["#ff7f7f","#ffbf7f","#ffdf7f","#bfff7f","#7fbfff","#c49bff"];
 const tiers = names => ["goat","excellent","bien","mid","nul","ru"].map((id,i)=>({id, name:names[i], color:TIER_COLORS[i]}));
 
-// Chaque liste a son propre onglet sur le site et sa propre feuille dans la Google Sheet.
+// Les tier lists affichées sur la page (l'une sous l'autre)
 const LISTS = [
   {
     id: "events", tab: "Events", title: "TIER LIST DES EVENTS",
@@ -24,6 +35,3 @@ const LISTS = [
       "Boxon","AMJE","AMC","ELF","UE","Zi-forum"]
   }
 ];
-
-// Code de la vue admin (empreinte SHA-256, le code lui-même n'est pas dans le dépôt)
-const ADMIN_HASH = "94df4f18b003f4634fe5338ae88889db5bbcbcd98e4f9f12be90cecccf08b0ad";
