@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Résultats tier list</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#121216; --panel:#1b1b22; --line:#2a2a33; --text:#f2f2f5; --muted:#8c8c99; --chip:#2b2b36; --chip-hover:#363644; --accent:#ffdf7f; }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+  body{padding:24px 16px 40px;max-width:1000px;margin:0 auto}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  h1{font-family:"Archivo Black",sans-serif;font-size:clamp(24px,5vw,36px);margin:0;letter-spacing:.5px}
+  h2{font-family:"Archivo Black",sans-serif;font-size:18px;margin:32px 0 10px;letter-spacing:.3px}
+  .sub{color:var(--muted);font-size:14px;margin-top:4px}
+  button{font:600 13px Inter,sans-serif;background:var(--chip);color:var(--text);border:1px solid var(--line);padding:9px 14px;border-radius:8px;cursor:pointer}
+  button:hover{background:var(--chip-hover)}
+  button.primary{background:var(--accent);color:#141414;border-color:var(--accent)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .login{max-width:380px;margin:12vh auto 0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;display:grid;gap:12px}
+  .login input{font:500 15px Inter,sans-serif;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .err{color:#ff7f7f;font-size:13px;min-height:1em;margin:0}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .stat b{display:block;font:22px "Archivo Black",sans-serif}
+  .stat span{color:var(--muted);font-size:13px}
+  .board{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .row{display:flex;min-height:62px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .row:last-child{border-bottom:none}
+  .label{flex:0 0 120px;display:flex;align-items:center;justify-content:center;text-align:center;font-family:"Archivo Black",sans-serif;font-size:15px;color:#141414;padding:8px;line-height:1.15}
+  .zone{flex:1;display:flex;flex-wrap:wrap;align-content:flex-start;gap:8px;padding:10px}
+  .chip{background:var(--chip);border:1px solid #3a3a48;border-radius:8px;padding:8px 12px;font-weight:700;font-size:14px;white-space:nowrap}
+  .chip small{color:var(--muted);font-weight:500;margin-left:6px}
+  .table{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .tr{display:grid;grid-template-columns:28px minmax(110px,170px) 54px 1fr 40px;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);font-size:14px}
+  .tr:last-child{border-bottom:none}
+  .tr.head{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+  .rank{color:var(--muted);font-variant-numeric:tabular-nums}
+  .num{font-variant-numeric:tabular-nums;text-align:right}
+  .bar{display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--bg)}
+  .bar i{display:block;height:100%}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 0;font-size:12px;color:var(--muted)}
+  .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--c);margin-right:5px;vertical-align:-1px}
+  .vote{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+  .vote summary{cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;gap:10px;font-weight:700;list-style:none}
+  .vote summary::-webkit-details-marker{display:none}
+  .vote summary span{color:var(--muted);font-weight:500;font-size:13px}
+  .vote .body{padding:0 14px 14px;font-size:14px;display:grid;gap:4px}
+  .vote .body b{display:inline-block;min-width:120px}
+  .vote .del{margin-top:8px;justify-self:start;font-size:12px;padding:6px 10px;color:#ff9f9f}
+  .search{width:100%;font:500 14px Inter,sans-serif;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:10px}
+  .empty{color:var(--muted);padding:20px;text-align:center}
+  @media (max-width:560px){ .label{flex-basis:84px;font-size:12px} .tr{grid-template-columns:22px 1fr 44px;} .tr .bar,.tr .n{grid-column:1/-1} .tr.head .bar-h,.tr.head .n{display:none} }
+</style>
+</head>
+<body>
+
+<form class="login" id="login">
+  <h1 style="font-size:24px">ADMIN</h1>
+  <input type="password" id="key" placeholder="Mot de passe admin" autocomplete="current-password" required>
+  <button class="primary" type="submit">Voir les résultats</button>
+  <p class="err" id="err"></p>
+</form>
+
+<main id="app" hidden>
+  <header>
+    <div>
+      <h1>RÉSULTATS</h1>
+      <div class="sub" id="updated"></div>
+    </div>
+    <div class="actions">
+      <button id="refresh">Rafraîchir</button>
+      <button id="csv">Exporter CSV</button>
+      <button id="logout">Déconnexion</button>
+    </div>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <h2>Tier list moyenne</h2>
+  <div class="board" id="board"></div>
+
+  <h2>Classement détaillé</h2>
+  <div class="table" id="table"></div>
+  <div class="legend" id="legend"></div>
+
+  <h2>Votes individuels</h2>
+  <input class="search" id="search" placeholder="Chercher un pseudo…">
+  <div id="votes"></div>
+</main>
+
+<script src="config.js"></script>
+<script>
+const SCORE = Object.fromEntries(TIERS.map((t,i)=>[t.id, TIERS.length-1-i])); // GOAT=5 … RU=0
+const $ = id=>document.getElementById(id);
+let KEY_ = null, VOTES = [];
+
+function sget(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
+function sset(k,v){ try{ v===null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v); }catch(e){} }
+function el(tag, props={}, ...kids){ const e=document.createElement(tag); Object.assign(e,props); e.append(...kids); return e; }
+
+async function api(params){
+  const url=API_URL+"?"+new URLSearchParams({...params,key:KEY_});
+  const res=await fetch(url); const data=await res.json();
+  if(!data.ok) throw new Error(data.error||"erreur");
+  return data;
+}
+
+async function refresh(){
+  const data=await api({action:"results"});
+  VOTES=data.votes; render();
+  $("updated").textContent="Mis à jour à "+new Date().toLocaleTimeString("fr-FR");
+}
+
+$("login").addEventListener("submit", async e=>{
+  e.preventDefault(); $("err").textContent="";
+  if(!API_URL){ $("err").textContent="API_URL n'est pas encore renseignée dans config.js"; return; }
+  KEY_=$("key").value;
+  try{ await refresh(); sset("tl-admin",KEY_); $("login").hidden=true; $("app").hidden=false; }
+  catch(err){ $("err").textContent= err.message==="unauthorized"?"Mot de passe incorrect":"Impossible de charger : "+err.message; }
+});
+$("refresh").onclick=()=>refresh().catch(e=>alert(e.message));
+$("logout").onclick=()=>{ sset("tl-admin",null); location.reload(); };
+$("search").oninput=renderVotes;
+
+function aggregate(){
+  return EVENTS.map(ev=>{
+    const counts=Object.fromEntries(TIERS.map(t=>[t.id,0])); let sum=0,n=0;
+    for(const v of VOTES){
+      for(const t of TIERS){ if((v.tiers[t.id]||[]).includes(ev)){ counts[t.id]++; sum+=SCORE[t.id]; n++; break; } }
+    }
+    return {ev,counts,n,avg:n?sum/n:null};
+  }).sort((a,b)=>(b.avg??-1)-(a.avg??-1));
+}
+function tierOf(avg){ const s=Math.round(avg); return TIERS.find(t=>SCORE[t.id]===s); }
+
+function render(){
+  const agg=aggregate();
+  const ranked=agg.filter(a=>a.n);
+  $("stats").replaceChildren(
+    el("div",{className:"stat"},el("b",{textContent:VOTES.length}),el("span",{textContent:"tier lists reçues"})),
+    el("div",{className:"stat"},el("b",{textContent:ranked[0]?ranked[0].ev:"—"}),el("span",{textContent:"event préféré"})),
+    el("div",{className:"stat"},el("b",{textContent:ranked.length?ranked[ranked.length-1].ev:"—"}),el("span",{textContent:"event le moins aimé"}))
+  );
+
+  // tier list moyenne
+  $("board").replaceChildren(...TIERS.map(t=>{
+    const lab=el("div",{className:"label",textContent:t.name}); lab.style.background=t.color;
+    const z=el("div",{className:"zone"});
+    ranked.filter(a=>tierOf(a.avg)===t).forEach(a=>z.append(el("div",{className:"chip",title:`moyenne ${a.avg.toFixed(2)} / ${TIERS.length-1}`},a.ev,el("small",{textContent:a.avg.toFixed(1)}))));
+    return el("div",{className:"row"},lab,z);
+  }));
+
+  // tableau
+  const head=el("div",{className:"tr head"},el("span",{textContent:"#"}),el("span",{textContent:"Event"}),el("span",{className:"num",textContent:"Moy."}),el("span",{className:"bar-h",textContent:"Répartition des votes"}),el("span",{className:"num n",textContent:"Votes"}));
+  $("table").replaceChildren(head,...agg.map((a,i)=>{
+    const bar=el("div",{className:"bar"});
+    TIERS.forEach(t=>{ if(a.counts[t.id]){ const s=el("i",{title:`${t.name} : ${a.counts[t.id]}`}); s.style.background=t.color; s.style.width=(a.counts[t.id]/a.n*100)+"%"; bar.append(s);} });
+    return el("div",{className:"tr"},
+      el("span",{className:"rank",textContent:a.n?i+1:"–"}), el("span",{textContent:a.ev}),
+      el("span",{className:"num",textContent:a.n?a.avg.toFixed(2):"—"}), bar, el("span",{className:"num n",textContent:a.n}));
+  }));
+  $("legend").replaceChildren(...TIERS.map(t=>{ const s=el("span",{textContent:`${t.name} (${SCORE[t.id]} pt${SCORE[t.id]>1?"s":""})`}); s.style.setProperty("--c",t.color); return s; }));
+
+  renderVotes();
+}
+
+function renderVotes(){
+  const q=$("search").value.trim().toLowerCase();
+  const list=VOTES.filter(v=>!q||String(v.pseudo).toLowerCase().includes(q)).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(!list.length){ $("votes").replaceChildren(el("div",{className:"empty",textContent:VOTES.length?"Aucun pseudo ne correspond":"Aucune tier list reçue pour l'instant"})); return; }
+  $("votes").replaceChildren(...list.map(v=>{
+    const body=el("div",{className:"body"});
+    TIERS.forEach(t=>{ const n=v.tiers[t.id]||[]; body.append(el("div",{},el("b",{textContent:t.name}),n.length?n.join(", "):"—")); });
+    const del=el("button",{className:"del",type:"button",textContent:"Supprimer ce vote"});
+    del.onclick=async()=>{
+      if(!confirm(`Supprimer la tier list de « ${v.pseudo} » ? C'est définitif.`)) return;
+      try{ await api({action:"delete",id:v.id}); await refresh(); }catch(e){ alert(e.message); }
+    };
+    body.append(del);
+    return el("details",{className:"vote"},el("summary",{},el("div",{textContent:v.pseudo}),el("span",{textContent:new Date(v.date).toLocaleString("fr-FR")})),body);
+  }));
+}
+
+$("csv").onclick=()=>{
+  const esc=s=>`"${String(s).replace(/"/g,'""')}"`;
+  const rows=[["Pseudo","Date",...EVENTS]];
+  VOTES.forEach(v=>rows.push([v.pseudo,v.date,...EVENTS.map(ev=>{ const t=TIERS.find(t=>(v.tiers[t.id]||[]).includes(ev)); return t?t.name:""; })]));
+  const blob=new Blob(["﻿"+rows.map(r=>r.map(esc).join(";")).join("\n")],{type:"text/csv"});
+  const a=el("a",{href:URL.createObjectURL(blob),download:"tierlist-resultats.csv"}); a.click();
+};
+
+// reconnexion auto dans l'onglet
+const saved=sget("tl-admin");
+if(saved && API_URL){ $("key").value=saved; $("login").requestSubmit(); }
+</script>
+</body>
+</html>
