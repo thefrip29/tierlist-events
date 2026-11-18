@@ -54,10 +54,9 @@
   .vote .del{margin-top:8px;justify-self:start;font-size:12px;padding:6px 10px;color:#ff9f9f}
   .search{width:100%;font:500 14px Inter,sans-serif;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:10px}
   .empty{color:var(--muted);padding:20px;text-align:center}
-  .tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line)}
-  .tabs a{color:var(--muted);text-decoration:none;font-weight:700;font-size:14px;padding:10px 14px;border-bottom:3px solid transparent;margin-bottom:-1px}
-  .tabs a:hover{color:var(--text)}
-  .tabs a.on{color:var(--text);border-bottom-color:var(--accent)}
+  section.list{margin-top:44px;padding-top:28px;border-top:1px solid var(--line)}
+  section.list h1{font-size:clamp(20px,4vw,28px);margin-bottom:14px}
+  .sec-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
   @media (max-width:560px){ .label{flex-basis:84px;font-size:12px} .tr{grid-template-columns:22px 1fr 44px;} .tr .bar,.tr .n{grid-column:1/-1} .tr.head .bar-h,.tr.head .n{display:none} }
 </style>
 </head>
@@ -71,55 +70,55 @@
 </form>
 
 <main id="app" hidden>
-  <nav class="tabs" id="tabs"></nav>
   <header>
     <div>
-      <h1 id="title">RÉSULTATS</h1>
+      <h1>RÉSULTATS</h1>
       <div class="sub" id="updated"></div>
     </div>
     <div class="actions">
       <button id="refresh">Rafraîchir</button>
-      <button id="csv">Exporter CSV</button>
       <button id="logout">Déconnexion</button>
     </div>
   </header>
-
-  <div class="stats" id="stats"></div>
-
-  <h2>Tier list moyenne</h2>
-  <div class="board" id="board"></div>
-
-  <h2>Classement détaillé</h2>
-  <div class="table" id="table"></div>
-  <div class="legend" id="legend"></div>
-
-  <h2>Votes individuels</h2>
-  <input class="search" id="search" placeholder="Chercher un pseudo…">
-  <div id="votes"></div>
+  <input class="search" id="search" placeholder="Chercher un pseudo dans les votes…">
+  <div id="sections"></div>
 </main>
 
-<script src="config.js?v=2"></script>
+<script src="config.js?v=3"></script>
 <script>
-const SCORE = Object.fromEntries(TIERS.map((t,i)=>[t.id, TIERS.length-1-i])); // GOAT=5 … RU=0
 const $ = id=>document.getElementById(id);
-let KEY_ = null, VOTES = [];
-renderTabs($("tabs"));
-$("title").textContent = "RÉSULTATS — "+LIST.tab.toUpperCase();
+let KEY_ = null;
 
 function sget(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
 function sset(k,v){ try{ v===null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v); }catch(e){} }
 function el(tag, props={}, ...kids){ const e=document.createElement(tag); Object.assign(e,props); e.append(...kids); return e; }
 
 async function api(params){
-  const url=API_URL+"?"+new URLSearchParams({...params,list:LIST.id,key:KEY_});
+  const url=API_URL+"?"+new URLSearchParams({...params,key:KEY_});
   const res=await fetch(url); const data=await res.json();
   if(!data.ok) throw new Error(data.error||"erreur");
   return data;
 }
 
+/* ---- une section de résultats par tier list ---- */
+const SECTIONS = LISTS.map(L=>{
+  const S={L, votes:[], score:Object.fromEntries(L.tiers.map((t,i)=>[t.id, L.tiers.length-1-i]))}; // GOAT=5 … dernier=0
+  const csv=el("button",{type:"button",textContent:"Exporter CSV"});
+  S.stats=el("div",{className:"stats"}); S.board=el("div",{className:"board"});
+  S.table=el("div",{className:"table"}); S.legend=el("div",{className:"legend"}); S.votesEl=el("div");
+  $("sections").append(el("section",{className:"list"},
+    el("div",{className:"sec-head"},el("h1",{textContent:L.title}),csv),
+    S.stats,
+    el("h2",{textContent:"Tier list moyenne"}), S.board,
+    el("h2",{textContent:"Classement détaillé"}), S.table, S.legend,
+    el("h2",{textContent:"Votes individuels"}), S.votesEl));
+  csv.onclick=()=>exportCsv(S);
+  return S;
+});
+
 async function refresh(){
-  const data=await api({action:"results"});
-  VOTES=data.votes; render();
+  const all=await Promise.all(SECTIONS.map(S=>api({action:"results",list:S.L.id})));
+  SECTIONS.forEach((S,i)=>{ S.votes=all[i].votes; render(S); });
   $("updated").textContent="Mis à jour à "+new Date().toLocaleTimeString("fr-FR");
 }
 
@@ -132,74 +131,74 @@ $("login").addEventListener("submit", async e=>{
 });
 $("refresh").onclick=()=>refresh().catch(e=>alert(e.message));
 $("logout").onclick=()=>{ sset("tl-admin",null); location.reload(); };
-$("search").oninput=renderVotes;
+$("search").oninput=()=>SECTIONS.forEach(renderVotes);
 
-function aggregate(){
-  return EVENTS.map(ev=>{
-    const counts=Object.fromEntries(TIERS.map(t=>[t.id,0])); let sum=0,n=0;
-    for(const v of VOTES){
-      for(const t of TIERS){ if((v.tiers[t.id]||[]).includes(ev)){ counts[t.id]++; sum+=SCORE[t.id]; n++; break; } }
+function aggregate(S){
+  const {L,votes,score}=S;
+  return L.items.map(ev=>{
+    const counts=Object.fromEntries(L.tiers.map(t=>[t.id,0])); let sum=0,n=0;
+    for(const v of votes){
+      for(const t of L.tiers){ if((v.tiers[t.id]||[]).includes(ev)){ counts[t.id]++; sum+=score[t.id]; n++; break; } }
     }
     return {ev,counts,n,avg:n?sum/n:null};
   }).sort((a,b)=>(b.avg??-1)-(a.avg??-1));
 }
-function tierOf(avg){ const s=Math.round(avg); return TIERS.find(t=>SCORE[t.id]===s); }
 
-function render(){
-  const agg=aggregate();
-  const ranked=agg.filter(a=>a.n);
-  $("stats").replaceChildren(
-    el("div",{className:"stat"},el("b",{textContent:VOTES.length}),el("span",{textContent:"tier lists reçues"})),
+function render(S){
+  const {L,score}=S;
+  const agg=aggregate(S), ranked=agg.filter(a=>a.n);
+  const tierOf=avg=>L.tiers.find(t=>score[t.id]===Math.round(avg));
+  S.stats.replaceChildren(
+    el("div",{className:"stat"},el("b",{textContent:S.votes.length}),el("span",{textContent:"tier lists reçues"})),
     el("div",{className:"stat"},el("b",{textContent:ranked[0]?ranked[0].ev:"—"}),el("span",{textContent:"le plus aimé"})),
     el("div",{className:"stat"},el("b",{textContent:ranked.length?ranked[ranked.length-1].ev:"—"}),el("span",{textContent:"le moins aimé"}))
   );
 
-  // tier list moyenne
-  $("board").replaceChildren(...TIERS.map(t=>{
+  S.board.replaceChildren(...L.tiers.map(t=>{
     const lab=el("div",{className:"label",textContent:t.name}); lab.style.background=t.color;
     const z=el("div",{className:"zone"});
-    ranked.filter(a=>tierOf(a.avg)===t).forEach(a=>z.append(el("div",{className:"chip",title:`moyenne ${a.avg.toFixed(2)} / ${TIERS.length-1}`},a.ev,el("small",{textContent:a.avg.toFixed(1)}))));
+    ranked.filter(a=>tierOf(a.avg)===t).forEach(a=>z.append(el("div",{className:"chip",title:`moyenne ${a.avg.toFixed(2)} / ${L.tiers.length-1}`},a.ev,el("small",{textContent:a.avg.toFixed(1)}))));
     return el("div",{className:"row"},lab,z);
   }));
 
-  // tableau
-  const head=el("div",{className:"tr head"},el("span",{textContent:"#"}),el("span",{textContent:LIST.tab}),el("span",{className:"num",textContent:"Moy."}),el("span",{className:"bar-h",textContent:"Répartition des votes"}),el("span",{className:"num n",textContent:"Votes"}));
-  $("table").replaceChildren(head,...agg.map((a,i)=>{
+  const head=el("div",{className:"tr head"},el("span",{textContent:"#"}),el("span",{textContent:L.tab}),el("span",{className:"num",textContent:"Moy."}),el("span",{className:"bar-h",textContent:"Répartition des votes"}),el("span",{className:"num n",textContent:"Votes"}));
+  S.table.replaceChildren(head,...agg.map((a,i)=>{
     const bar=el("div",{className:"bar"});
-    TIERS.forEach(t=>{ if(a.counts[t.id]){ const s=el("i",{title:`${t.name} : ${a.counts[t.id]}`}); s.style.background=t.color; s.style.width=(a.counts[t.id]/a.n*100)+"%"; bar.append(s);} });
+    L.tiers.forEach(t=>{ if(a.counts[t.id]){ const s=el("i",{title:`${t.name} : ${a.counts[t.id]}`}); s.style.background=t.color; s.style.width=(a.counts[t.id]/a.n*100)+"%"; bar.append(s);} });
     return el("div",{className:"tr"},
       el("span",{className:"rank",textContent:a.n?i+1:"–"}), el("span",{textContent:a.ev}),
       el("span",{className:"num",textContent:a.n?a.avg.toFixed(2):"—"}), bar, el("span",{className:"num n",textContent:a.n}));
   }));
-  $("legend").replaceChildren(...TIERS.map(t=>{ const s=el("span",{textContent:`${t.name} (${SCORE[t.id]} pt${SCORE[t.id]>1?"s":""})`}); s.style.setProperty("--c",t.color); return s; }));
+  S.legend.replaceChildren(...L.tiers.map(t=>{ const s=el("span",{textContent:`${t.name} (${score[t.id]} pt${score[t.id]>1?"s":""})`}); s.style.setProperty("--c",t.color); return s; }));
 
-  renderVotes();
+  renderVotes(S);
 }
 
-function renderVotes(){
+function renderVotes(S){
   const q=$("search").value.trim().toLowerCase();
-  const list=VOTES.filter(v=>!q||String(v.pseudo).toLowerCase().includes(q)).sort((a,b)=>new Date(b.date)-new Date(a.date));
-  if(!list.length){ $("votes").replaceChildren(el("div",{className:"empty",textContent:VOTES.length?"Aucun pseudo ne correspond":"Aucune tier list reçue pour l'instant"})); return; }
-  $("votes").replaceChildren(...list.map(v=>{
+  const list=S.votes.filter(v=>!q||String(v.pseudo).toLowerCase().includes(q)).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(!list.length){ S.votesEl.replaceChildren(el("div",{className:"empty",textContent:S.votes.length?"Aucun pseudo ne correspond":"Aucune tier list reçue pour l'instant"})); return; }
+  S.votesEl.replaceChildren(...list.map(v=>{
     const body=el("div",{className:"body"});
-    TIERS.forEach(t=>{ const n=v.tiers[t.id]||[]; body.append(el("div",{},el("b",{textContent:t.name}),n.length?n.join(", "):"—")); });
+    S.L.tiers.forEach(t=>{ const n=v.tiers[t.id]||[]; body.append(el("div",{},el("b",{textContent:t.name}),n.length?n.join(", "):"—")); });
     const del=el("button",{className:"del",type:"button",textContent:"Supprimer ce vote"});
     del.onclick=async()=>{
-      if(!confirm(`Supprimer la tier list de « ${v.pseudo} » ? C'est définitif.`)) return;
-      try{ await api({action:"delete",id:v.id}); await refresh(); }catch(e){ alert(e.message); }
+      if(!confirm(`Supprimer la tier list ${S.L.tab.toLowerCase()} de « ${v.pseudo} » ? C'est définitif.`)) return;
+      try{ await api({action:"delete",list:S.L.id,id:v.id}); await refresh(); }catch(e){ alert(e.message); }
     };
     body.append(del);
     return el("details",{className:"vote"},el("summary",{},el("div",{textContent:v.pseudo}),el("span",{textContent:new Date(v.date).toLocaleString("fr-FR")})),body);
   }));
 }
 
-$("csv").onclick=()=>{
+function exportCsv(S){
+  const {L}=S;
   const esc=s=>`"${String(s).replace(/"/g,'""')}"`;
-  const rows=[["Pseudo","Date",...EVENTS]];
-  VOTES.forEach(v=>rows.push([v.pseudo,v.date,...EVENTS.map(ev=>{ const t=TIERS.find(t=>(v.tiers[t.id]||[]).includes(ev)); return t?t.name:""; })]));
+  const rows=[["Pseudo","Date",...L.items]];
+  S.votes.forEach(v=>rows.push([v.pseudo,v.date,...L.items.map(ev=>{ const t=L.tiers.find(t=>(v.tiers[t.id]||[]).includes(ev)); return t?t.name:""; })]));
   const blob=new Blob(["﻿"+rows.map(r=>r.map(esc).join(";")).join("\n")],{type:"text/csv"});
-  const a=el("a",{href:URL.createObjectURL(blob),download:`tierlist-${LIST.id}-resultats.csv`}); a.click();
-};
+  el("a",{href:URL.createObjectURL(blob),download:`tierlist-${L.id}-resultats.csv`}).click();
+}
 
 // reconnexion auto dans l'onglet
 const saved=sget("tl-admin");

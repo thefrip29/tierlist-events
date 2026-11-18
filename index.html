@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tier list des events</title>
+<title>Tier lists</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -16,6 +16,9 @@
   body{padding:24px 16px 40px;max-width:1000px;margin:0 auto}
   header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
   h1{font-family:"Archivo Black",sans-serif;font-size:clamp(24px,5vw,36px);margin:0;letter-spacing:.5px}
+  .intro{color:var(--muted);font-size:15px;margin:6px 0 0}
+  section.list{margin-top:40px}
+  section.list:first-of-type{margin-top:28px}
   .sub{color:var(--muted);font-size:14px;margin-top:4px}
   .actions{display:flex;gap:8px;flex-wrap:wrap}
   button{font:600 13px Inter,sans-serif;background:var(--chip);color:var(--text);border:1px solid var(--line);
@@ -31,9 +34,9 @@
     font-family:"Archivo Black",sans-serif;font-size:16px;color:#141414;padding:8px;line-height:1.15}
   .zone{flex:1;display:flex;flex-wrap:wrap;align-content:flex-start;gap:8px;padding:10px;min-height:78px;transition:background .12s}
   .zone.over{background:#262632}
-  .pool-wrap{margin-top:22px}
+  .pool-wrap{margin-top:16px}
   .pool-title{font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:0 0 8px}
-  #pool{border:1px dashed var(--line);border-radius:10px;min-height:90px}
+  .pool{border:1px dashed var(--line);border-radius:10px;min-height:90px}
   .chip{user-select:none;-webkit-user-select:none;touch-action:none;cursor:grab;
     background:var(--chip);border:1px solid #3a3a48;border-radius:8px;padding:10px 14px;
     font-weight:700;font-size:14px;white-space:nowrap;box-shadow:0 1px 0 rgba(0,0,0,.3)}
@@ -42,7 +45,7 @@
   .drag{position:fixed;pointer-events:none;z-index:999;cursor:grabbing;transform:rotate(-2deg) scale(1.06);
     box-shadow:0 10px 24px rgba(0,0,0,.5)}
   .marker{width:4px;align-self:stretch;min-height:38px;background:#fff;border-radius:2px}
-  .submit{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;
+  .submit{margin-top:40px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;
     display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .submit input{flex:1 1 200px;font:500 15px Inter,sans-serif;background:var(--bg);color:var(--text);
     border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
@@ -50,10 +53,6 @@
   .submit button{padding:11px 18px;font-size:14px}
   .status{flex-basis:100%;font-size:13px;color:var(--muted);margin:0}
   .status.ok{color:#bfff7f}
-  .tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line)}
-  .tabs a{color:var(--muted);text-decoration:none;font-weight:700;font-size:14px;padding:10px 14px;border-bottom:3px solid transparent;margin-bottom:-1px}
-  .tabs a:hover{color:var(--text)}
-  .tabs a.on{color:var(--text);border-bottom-color:var(--accent)}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#fff;color:#111;
     padding:10px 16px;border-radius:8px;font-weight:700;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:1000}
   .toast.show{opacity:1}
@@ -61,86 +60,84 @@
 </style>
 </head>
 <body>
-<nav class="tabs" id="tabs"></nav>
-<header>
-  <div>
-    <h1 id="title"></h1>
-    <div class="sub" id="sub"></div>
-  </div>
-  <div class="actions">
-    <button id="copy">Copier en texte</button>
-    <button id="reset">Réinitialiser</button>
-  </div>
-</header>
+<h1>TIER LISTS</h1>
+<p class="intro">Classe les events et les assos, puis valide tout en bas.</p>
 
-<div class="board" id="board"></div>
-
-<div class="pool-wrap">
-  <p class="pool-title" id="pool-title"></p>
-  <div class="zone" id="pool" data-tier="pool"></div>
-</div>
+<div id="lists"></div>
 
 <form class="submit" id="form">
   <input id="pseudo" maxlength="40" placeholder="Ton pseudo / bucque" autocomplete="nickname" required>
-  <button type="submit" class="primary" id="send">Valider ma tier list</button>
+  <button type="submit" class="primary" id="send">Valider mes tier lists</button>
   <p class="status" id="status"></p>
 </form>
 
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=2"></script>
+<script src="config.js?v=3"></script>
 <script>
-const KEY = `tierlist-${LIST.id}-v1`;
 const ID_KEY = "tierlist-events-client-id";
-const SENT_KEY = `tierlist-${LIST.id}-sent`;
-
-renderTabs(document.getElementById("tabs"));
-document.title = LIST.title.charAt(0)+LIST.title.slice(1).toLowerCase();
-document.getElementById("title").textContent = LIST.title;
-document.getElementById("sub").textContent = LIST.sub;
-document.getElementById("pool-title").textContent = LIST.poolTitle;
-
-const board = document.getElementById("board");
-const pool = document.getElementById("pool");
-const zones = {pool};
+const SENT_KEY = "tierlist-sent";
 
 function store(k,v){ try{ v===null?localStorage.removeItem(k):localStorage.setItem(k,v); }catch(e){} }
 function read(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function el(tag, props={}, ...kids){ const e=document.createElement(tag); Object.assign(e,props); e.append(...kids); return e; }
 
-TIERS.forEach(t=>{
-  const row = document.createElement("div"); row.className="row";
-  const lab = document.createElement("div"); lab.className="label"; lab.style.background=t.color; lab.textContent=t.name;
-  const z = document.createElement("div"); z.className="zone"; z.dataset.tier=t.id;
-  row.append(lab,z); board.append(row); zones[t.id]=z;
+const toast=document.getElementById("toast");
+let toastTimer;
+function showToast(t){ toast.textContent=t; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove("show"),1800); }
+
+/* ---- une section par tier list ---- */
+const SECTIONS = LISTS.map(L=>{
+  const key=`tierlist-${L.id}-v1`;
+  const zones={};
+  const board=el("div",{className:"board"});
+  L.tiers.forEach(t=>{
+    const lab=el("div",{className:"label",textContent:t.name}); lab.style.background=t.color;
+    const z=el("div",{className:"zone"}); zones[t.id]=z;
+    board.append(el("div",{className:"row"},lab,z));
+  });
+  const pool=el("div",{className:"zone pool"}); zones.pool=pool;
+  const copyBtn=el("button",{type:"button",textContent:"Copier en texte"});
+  const resetBtn=el("button",{type:"button",textContent:"Réinitialiser"});
+  const section=el("section",{className:"list"},
+    el("header",{},el("div",{},el("h1",{textContent:L.title}),el("div",{className:"sub",textContent:L.sub.replace(", puis valide ta tier list en bas","")})),
+      el("div",{className:"actions"},copyBtn,resetBtn)),
+    board,
+    el("div",{className:"pool-wrap"},el("p",{className:"pool-title",textContent:L.poolTitle}),pool));
+  document.getElementById("lists").append(section);
+
+  const S={L,key,zones,section};
+  S.current=()=>{ const s={}; for(const [k,z] of Object.entries(zones)) s[k]=[...z.querySelectorAll(".chip")].map(c=>c.dataset.name); return s; };
+  S.save=()=>store(key,JSON.stringify(S.current()));
+  S.load=()=>{
+    let state=null; try{ state=JSON.parse(read(key)); }catch(e){}
+    Object.values(zones).forEach(z=>z.innerHTML="");
+    const placed=new Set();
+    if(state) for(const [tier,names] of Object.entries(state)){
+      if(!zones[tier]) continue;
+      names.forEach(n=>{ if(L.items.includes(n)&&!placed.has(n)){ zones[tier].append(makeChip(n,S)); placed.add(n);} });
+    }
+    L.items.forEach(n=>{ if(!placed.has(n)) pool.append(makeChip(n,S)); });
+  };
+  resetBtn.onclick=()=>{ store(key,null); S.load(); showToast("Tier list remise à zéro"); };
+  copyBtn.onclick=async()=>{
+    const cur=S.current();
+    const lines=L.tiers.map(t=>`${t.name} : ${cur[t.id].length?cur[t.id].join(", "):"—"}`);
+    if(cur.pool.length) lines.push(`Pas classés : ${cur.pool.join(", ")}`);
+    try{ await navigator.clipboard.writeText(L.title+"\n"+lines.join("\n")); showToast("Copié !"); }
+    catch(e){ showToast("Copie impossible ici"); }
+  };
+  return S;
 });
 
-function makeChip(name){
-  const c=document.createElement("div"); c.className="chip"; c.textContent=name; c.dataset.name=name;
+function makeChip(name,S){
+  const c=el("div",{className:"chip",textContent:name}); c.dataset.name=name; c._S=S;
   c.addEventListener("pointerdown", startDrag); return c;
 }
 
-function load(){
-  let state=null;
-  try{ state=JSON.parse(read(KEY)); }catch(e){}
-  Object.values(zones).forEach(z=>z.innerHTML="");
-  const placed=new Set();
-  if(state){
-    for(const [tier,names] of Object.entries(state)){
-      if(!zones[tier]) continue;
-      names.forEach(n=>{ if(EVENTS.includes(n)&&!placed.has(n)){ zones[tier].append(makeChip(n)); placed.add(n);} });
-    }
-  }
-  EVENTS.forEach(n=>{ if(!placed.has(n)) pool.append(makeChip(n)); });
-}
-function current(){
-  const s={}; for(const [k,z] of Object.entries(zones)) s[k]=[...z.querySelectorAll(".chip")].map(c=>c.dataset.name);
-  return s;
-}
-function save(){ store(KEY, JSON.stringify(current())); }
-
-/* ---- drag & drop (souris + tactile) ---- */
+/* ---- drag & drop (souris + tactile), limité à la tier list d'origine ---- */
 let drag=null;
-const marker=document.createElement("div"); marker.className="marker";
+const marker=el("div",{className:"marker"});
 
 function startDrag(e){
   if(e.button!==undefined && e.button!==0) return;
@@ -149,30 +146,33 @@ function startDrag(e){
   const clone=src.cloneNode(true); clone.classList.add("drag");
   clone.style.width=r.width+"px"; clone.style.left=r.left+"px"; clone.style.top=r.top+"px";
   document.body.append(clone); src.classList.add("ghost");
-  drag={src,clone,dx:e.clientX-r.left,dy:e.clientY-r.top};
+  drag={src,clone,S:src._S,dx:e.clientX-r.left,dy:e.clientY-r.top};
   window.addEventListener("pointermove",onMove);
   window.addEventListener("pointerup",endDrag);
   window.addEventListener("pointercancel",endDrag);
   onMove(e);
 }
 function zoneAt(x,y){
-  const el=document.elementFromPoint(x,y); return el?el.closest(".zone"):null;
+  const el=document.elementFromPoint(x,y); const z=el?el.closest(".zone"):null;
+  return z && drag.S.section.contains(z) ? z : null;
 }
 function onMove(e){
   if(!drag) return;
   drag.clone.style.left=(e.clientX-drag.dx)+"px"; drag.clone.style.top=(e.clientY-drag.dy)+"px";
   document.querySelectorAll(".zone.over").forEach(z=>z.classList.remove("over"));
   const z=zoneAt(e.clientX,e.clientY);
-  if(!z){ marker.remove(); return; }
-  z.classList.add("over");
-  const chips=[...z.querySelectorAll(".chip:not(.ghost)")];
-  let before=null;
-  for(const c of chips){
-    const r=c.getBoundingClientRect();
-    if(e.clientY < r.top) { before=c; break; }
-    if(e.clientY <= r.bottom && e.clientX < r.left + r.width/2){ before=c; break; }
+  if(!z){ marker.remove(); }
+  else{
+    z.classList.add("over");
+    const chips=[...z.querySelectorAll(".chip:not(.ghost)")];
+    let before=null;
+    for(const c of chips){
+      const r=c.getBoundingClientRect();
+      if(e.clientY < r.top) { before=c; break; }
+      if(e.clientY <= r.bottom && e.clientX < r.left + r.width/2){ before=c; break; }
+    }
+    z.insertBefore(marker,before);
   }
-  z.insertBefore(marker,before);
   const m=60; if(e.clientY<m) window.scrollBy(0,-12); else if(e.clientY>innerHeight-m) window.scrollBy(0,12);
 }
 function endDrag(){
@@ -183,29 +183,10 @@ function endDrag(){
   window.removeEventListener("pointermove",onMove);
   window.removeEventListener("pointerup",endDrag);
   window.removeEventListener("pointercancel",endDrag);
-  drag=null; save();
+  drag.S.save(); drag=null;
 }
 
-/* ---- boutons ---- */
-const toast=document.getElementById("toast");
-let toastTimer;
-function showToast(t){ toast.textContent=t; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove("show"),1800); }
-
-document.getElementById("reset").onclick=()=>{
-  store(KEY,null); load(); showToast("Tier list remise à zéro");
-};
-document.getElementById("copy").onclick=async()=>{
-  const lines=TIERS.map(t=>{
-    const n=[...zones[t.id].querySelectorAll(".chip")].map(c=>c.dataset.name);
-    return `${t.name} : ${n.length?n.join(", "):"—"}`;
-  });
-  const rest=[...pool.querySelectorAll(".chip")].map(c=>c.dataset.name);
-  if(rest.length) lines.push(`Pas classés : ${rest.join(", ")}`);
-  try{ await navigator.clipboard.writeText(lines.join("\n")); showToast("Copié !"); }
-  catch(e){ showToast("Copie impossible ici"); }
-};
-
-/* ---- validation ---- */
+/* ---- validation (envoie les deux tier lists) ---- */
 const form=document.getElementById("form"), pseudoIn=document.getElementById("pseudo"),
       sendBtn=document.getElementById("send"), statusEl=document.getElementById("status");
 
@@ -216,7 +197,7 @@ function clientId(){
 }
 function showSent(){
   const sent=read(SENT_KEY);
-  if(sent){ statusEl.textContent=`Tier list envoyée le ${new Date(+sent).toLocaleString("fr-FR")}. Tu peux la modifier et la renvoyer, ça remplacera l'ancienne.`; statusEl.className="status ok"; sendBtn.textContent="Renvoyer ma tier list"; }
+  if(sent){ statusEl.textContent=`Tier lists envoyées le ${new Date(+sent).toLocaleString("fr-FR")}. Tu peux les modifier et les renvoyer, ça remplacera les anciennes.`; statusEl.className="status ok"; sendBtn.textContent="Renvoyer mes tier lists"; }
 }
 pseudoIn.value=read("tierlist-events-pseudo")||"";
 showSent();
@@ -225,22 +206,24 @@ form.addEventListener("submit", async e=>{
   e.preventDefault();
   const pseudo=pseudoIn.value.trim();
   if(!pseudo){ pseudoIn.focus(); return; }
-  const tiers=current(); const rest=tiers.pool; delete tiers.pool;
-  if(rest.length && !confirm(`${rest.length} élément(s) pas encore classé(s) (${rest.join(", ")}). Envoyer quand même ?`)) return;
+  const payloads=SECTIONS.map(S=>{ const tiers=S.current(); const rest=tiers.pool; delete tiers.pool; return {S,tiers,rest}; });
+  const missing=payloads.filter(p=>p.rest.length).map(p=>`${p.S.L.tab} : ${p.rest.length} pas classé(s)`);
+  if(missing.length && !confirm(`Il reste des éléments à classer :\n${missing.join("\n")}\n\nEnvoyer quand même ?`)) return;
   if(!API_URL){ showToast("Le formulaire n'est pas encore branché"); return; }
   sendBtn.disabled=true; statusEl.className="status"; statusEl.textContent="Envoi en cours…";
   try{
-    const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({list:LIST.id,id:clientId(),pseudo,tiers})});
-    const data=await res.json();
-    if(!data.ok) throw new Error(data.error||"erreur");
+    const id=clientId();
+    const results=await Promise.all(payloads.map(p=>
+      fetch(API_URL,{method:"POST",body:JSON.stringify({list:p.S.L.id,id,pseudo,tiers:p.tiers})}).then(r=>r.json())));
+    const bad=results.find(d=>!d.ok); if(bad) throw new Error(bad.error||"erreur");
     store("tierlist-events-pseudo",pseudo); store(SENT_KEY,String(Date.now()));
-    showSent(); showToast("Tier list validée !");
+    showSent(); showToast("Tier lists validées !");
   }catch(err){
     statusEl.className="status"; statusEl.textContent="L'envoi a échoué, réessaie dans un instant.";
   }finally{ sendBtn.disabled=false; }
 });
 
-load();
+SECTIONS.forEach(S=>S.load());
 </script>
 </body>
 </html>

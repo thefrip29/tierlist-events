@@ -19,11 +19,11 @@ Les votes arrivent aussi en clair dans les onglets « Votes events » et « Vote
 
 ## Pages
 
-- Events : `index.html` (ou `?l=events`), Assos : `index.html?l=assos`
-- Admin : `admin.html`, avec un onglet par liste
+- Page de vote : `index.html` (events + assos sur la même page, un seul bouton Valider)
+- Admin : `admin.html` (résultats des deux listes sur la même page)
 
 > Si tu modifies le script plus tard : Déployer → Gérer les déploiements → ✏️ → Version : Nouvelle version (l'URL reste la même).
 
 ## Modifier les listes
 
-Tout est dans `config.js` (`LISTS`). Pour ajouter une nouvelle tier list, ajoute une entrée dans `LISTS` de `config.js` **et** dans `LISTS` de `apps-script.gs` (puis redéploie une nouvelle version du script).
+Tout est dans `config.js` (`LISTS`), chaque liste apparaît sur la page. Pour ajouter une nouvelle tier list, ajoute une entrée dans `LISTS` de `config.js` **et** dans `LISTS` de `apps-script.gs` (puis redéploie une nouvelle version du script).

@@ -24,17 +24,3 @@ const LISTS = [
       "Boxon","AMJE","AMC","ELF","UE","Zi-forum"]
   }
 ];
-
-// Liste affichée selon ?l=… dans l'URL (events par défaut)
-const LIST = LISTS.find(l => l.id === new URLSearchParams(location.search).get("l")) || LISTS[0];
-const TIERS = LIST.tiers;
-const EVENTS = LIST.items;
-
-// Onglets de navigation entre les listes
-function renderTabs(el){
-  LISTS.forEach(l=>{
-    const a=document.createElement("a"); a.textContent=l.tab; a.href="?l="+l.id;
-    if(l===LIST) a.className="on";
-    el.append(a);
-  });
-}
